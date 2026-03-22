@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ARIA — Video Call</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root{
+  --bg:#0c0c0e;
+  --surface:rgba(255,255,255,0.06);
+  --border:rgba(255,255,255,0.1);
+  --text:#f0eee8;
+  --muted:rgba(240,238,232,0.45);
+  --warm:#e8956d;
+  --warm-dim:rgba(232,149,109,0.15);
+  --green:#4ade80;
+  --red:#f87171;
+  --blue:#60a5fa;
+}
+
+html,body{height:100%;font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--text);overflow:hidden;user-select:none}
+
+/* ── SETUP ── */
+#setup{
+  position:fixed;inset:0;z-index:200;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--bg);
+}
+
+.setup-card{
+  width:100%;max-width:400px;padding:44px 36px;
+  background:rgba(255,255,255,0.04);
+  border:1px solid var(--border);border-radius:24px;
+  text-align:center;
+}
+
+.setup-logo{
+  font-size:2.6rem;font-weight:700;letter-spacing:0.05em;
+  color:var(--warm);margin-bottom:6px;
+  text-shadow:0 0 40px rgba(232,149,109,0.3);
+}
+
+.setup-sub{font-size:0.85rem;color:var(--muted);margin-bottom:32px;line-height:1.6;font-weight:300}
+
+.field{margin-bottom:14px;text-align:left}
+.field label{display:block;font-size:0.68rem;font-weight:600;color:var(--muted);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:6px}
+.field input{
+  width:100%;padding:12px 15px;
+  background:rgba(255,255,255,0.05);
+  border:1px solid var(--border);border-radius:12px;
+  color:var(--text);font-family:'Plus Jakarta Sans',sans-serif;
+  font-size:0.88rem;outline:none;transition:border-color 0.3s;
+}
+.field input:focus{border-color:var(--warm)}
+.field input::placeholder{color:var(--muted)}
+
+.setup-note{font-size:0.7rem;color:var(--muted);margin:4px 0 20px;text-align:left}
+.setup-note a{color:var(--warm);text-decoration:none}
+
+.start-btn{
+  width:100%;padding:14px;border:none;border-radius:13px;
+  background:linear-gradient(135deg,#c9714a,#e8956d);
+  color:#0c0c0e;font-family:'Plus Jakarta Sans',sans-serif;
+  font-size:0.95rem;font-weight:700;cursor:pointer;
+  transition:all 0.3s;
+}
+.start-btn:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(232,149,109,0.3)}
+
+/* ── CALL SCREEN ── */
+#call{
+  position:fixed;inset:0;z-index:100;
+  display:none;
+  background:#000;
+}
+
+/* ARIA's "video" - full background */
+.aria-bg{
+  position:absolute;inset:0;
+  background:linear-gradient(135deg,#1a0a2e,#0d1a2e,#1a1a0a);
+  display:flex;align-items:center;justify-content:center;
+  overflow:hidden;
+}
+
+.aria-pulse{
+  width:280px;height:280px;border-radius:50%;
+  background:radial-gradient(circle,rgba(232,149,109,0.15) 0%,transparent 70%);
+  position:relative;display:flex;align-items:center;justify-content:center;
+}
+
+.aria-pulse::before{
+  content:'';position:absolute;inset:-20px;border-radius:50%;
+  border:1px solid rgba(232,149,109,0.15);
+  animation:ring1 3s ease-in-out infinite;
+}
+.aria-pulse::after{
+  content:'';position:absolute;inset:-50px;border-radius:50%;
+  border:1px solid rgba(232,149,109,0.08);
+  animation:ring1 3s ease-in-out infinite 0.5s;
+}
+
+@keyframes ring1{0%,100%{transform:scale(1);opacity:0.5}50%{transform:scale(1.08);opacity:1}}
+
+.aria-avatar-big{
+  width:120px;height:120px;border-radius:50%;
+  background:linear-gradient(135deg,#c9714a,#e8956d,#a8d5ba);
+  display:flex;align-items:center;justify-content:center;
+  font-size:3rem;position:relative;z-index:1;
+  box-shadow:0 0 60px rgba(232,149,109,0.3);
+}
+
+.aria-speaking-ring{
+  position:absolute;inset:-6px;border-radius:50%;
+  border:2px solid var(--warm);
+  opacity:0;transition:opacity 0.3s;
+  animation:speak-ring 0.8s ease-in-out infinite;
+}
+
+.speaking .aria-speaking-ring{opacity:1}
+
+@keyframes speak-ring{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
+
+/* ARIA name + status */
+.aria-info{
+  position:absolute;top:28px;left:50%;transform:translateX(-50%);
+  text-align:center;
+}
+
+.aria-call-name{
+  font-size:1.1rem;font-weight:600;color:var(--text);
+  letter-spacing:0.05em;
+}
+
+.aria-call-status{
+  font-size:0.72rem;color:var(--muted);margin-top:3px;
+  display:flex;align-items:center;justify-content:center;gap:6px;
+}
+
+.status-green{color:var(--green)}
+
+/* Timer */
+.call-timer{
+  position:absolute;top:28px;right:28px;
+  font-size:0.8rem;color:var(--muted);
+  font-variant-numeric:tabular-nums;
+  letter-spacing:0.05em;
+}
+
+/* User camera - pip */
+.user-pip{
+  position:absolute;bottom:140px;right:20px;
+  width:120px;height:160px;
+  border-radius:16px;overflow:hidden;
+  border:2px solid rgba(255,255,255,0.15);
+  box-shadow:0 8px 32px rgba(0,0,0,0.5);
+  background:#111;
+  transition:all 0.3s;
+}
+
+.user-pip:hover{transform:scale(1.03)}
+
+#userVideo{
+  width:100%;height:100%;object-fit:cover;
+  transform:scaleX(-1);display:block;
+}
+
+.pip-label{
+  position:absolute;bottom:6px;left:50%;transform:translateX(-50%);
+  font-size:0.62rem;color:rgba(255,255,255,0.6);
+  background:rgba(0,0,0,0.5);padding:2px 8px;border-radius:100px;
+  white-space:nowrap;
+}
+
+/* ARIA speech bubble */
+.speech-area{
+  position:absolute;
+  left:50%;transform:translateX(-50%);
+  bottom:170px;width:90%;max-width:500px;
+  text-align:center;
+}
+
+.speech-bubble{
+  display:inline-block;
+  background:rgba(255,255,255,0.08);
+  backdrop-filter:blur(12px);
+  border:1px solid rgba(255,255,255,0.12);
+  border-radius:20px;padding:16px 22px;
+  font-size:0.95rem;line-height:1.65;font-weight:300;
+  color:var(--text);min-height:56px;
+  transition:all 0.4s;max-width:100%;
+}
+
+.speech-bubble.empty{opacity:0}
+
+/* waveform */
+.waveform{
+  display:flex;align-items:center;justify-content:center;
+  gap:3px;height:20px;margin-top:8px;
+  opacity:0;transition:opacity 0.3s;
+}
+.waveform.active{opacity:1}
+.wbar{width:3px;border-radius:2px;background:var(--warm);animation:wv 0.8s ease-in-out infinite}
+.wbar:nth-child(1){animation-delay:0s}
+.wbar:nth-child(2){animation-delay:0.1s}
+.wbar:nth-child(3){animation-delay:0.2s}
+.wbar:nth-child(4){animation-delay:0.3s}
+.wbar:nth-child(5){animation-delay:0.2s}
+.wbar:nth-child(6){animation-delay:0.1s}
+.wbar:nth-child(7){animation-delay:0s}
+@keyframes wv{0%,100%{height:4px}50%{height:18px}}
+
+/* Controls */
+.controls{
+  position:absolute;bottom:0;left:0;right:0;
+  padding:24px;
+  display:flex;align-items:center;justify-content:center;
+  gap:16px;
+  background:linear-gradient(transparent,rgba(0,0,0,0.6));
+}
+
+.ctrl-btn{
+  width:56px;height:56px;border-radius:50%;border:none;
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.3rem;cursor:pointer;transition:all 0.25s;
+  backdrop-filter:blur(8px);
+}
+
+.ctrl-btn:hover{transform:scale(1.08)}
+.ctrl-btn:active{transform:scale(0.96)}
+
+.btn-mic{background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.15);color:var(--text)}
+.btn-mic.muted{background:rgba(248,113,113,0.2);border-color:rgba(248,113,113,0.4);color:var(--red)}
+.btn-mic.listening{background:rgba(74,222,128,0.15);border-color:rgba(74,222,128,0.4);color:var(--green);animation:listen-pulse 1.5s infinite}
+
+@keyframes listen-pulse{0%,100%{box-shadow:0 0 0 0 rgba(74,222,128,0.3)}50%{box-shadow:0 0 0 10px rgba(74,222,128,0)}}
+
+.btn-end{background:var(--red);color:white;width:64px;height:64px;font-size:1.5rem}
+.btn-end:hover{background:#ef4444}
+
+.btn-cam{background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.15);color:var(--text)}
+
+/* Listening indicator */
+.listen-indicator{
+  position:absolute;bottom:105px;left:50%;transform:translateX(-50%);
+  font-size:0.72rem;color:var(--muted);
+  display:flex;align-items:center;gap:6px;
+  opacity:0;transition:opacity 0.3s;
+}
+.listen-indicator.show{opacity:1}
+.listen-dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:blink 1s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.2}}
+
+/* Memory sidebar */
+.mem-sidebar{
+  position:absolute;top:80px;left:20px;
+  width:180px;
+  background:rgba(0,0,0,0.4);
+  backdrop-filter:blur(12px);
+  border:1px solid var(--border);
+  border-radius:16px;padding:14px;
+  font-size:0.72rem;
+  opacity:0;transition:opacity 0.3s;
+}
+.mem-sidebar:hover{opacity:1}
+.mem-sidebar-label{color:var(--muted);font-size:0.6rem;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:8px}
+.mem-row{color:rgba(255,255,255,0.65);margin-bottom:5px;line-height:1.4}
+.mem-row span{color:var(--warm)}
+
+/* Notification toast */
+.toast{
+  position:absolute;top:80px;left:50%;transform:translateX(-50%);
+  background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);
+  border:1px solid var(--border);border-radius:100px;
+  padding:8px 18px;font-size:0.78rem;color:var(--muted);
+  opacity:0;transition:opacity 0.3s;pointer-events:none;
+  white-space:nowrap;
+}
+.toast.show{opacity:1}
+</style>
+</head>
+<body>
+
+<!-- SETUP -->
+<div id="setup">
+  <div class="setup-card">
+    <div class="setup-logo">ARIA</div>
+    <div class="setup-sub">Video call with an AI who actually gets you.<br>Real reactions. Real conversation.</div>
+
+    <div class="field">
+      <label>Your name</label>
+      <input type="text" id="nameIn" placeholder="What should ARIA call you?">
+    </div>
+
+    <div class="field">
+      <label>Something about you (optional)</label>
+      <input type="text" id="bioIn" placeholder="e.g. I'm a student, I love building things">
+    </div>
+
+    <div class="setup-note">Uses Claude AI. Set your API key as environment variable ANTHROPIC_API_KEY on Railway.</div>
+
+    <button class="start-btn" onclick="startCall()">Start Call with ARIA →</button>
+  </div>
+</div>
+
+<!-- CALL -->
+<div id="call">
+  <div class="aria-bg">
+    <div class="aria-pulse" id="ariaPulse">
+      <div class="aria-avatar-big" id="ariaAvatar">
+        🌸
+        <div class="aria-speaking-ring"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="aria-info">
+    <div class="aria-call-name">ARIA</div>
+    <div class="aria-call-status">
+      <span class="status-green" id="callStatus">● Connected</span>
+    </div>
+  </div>
+
+  <div class="call-timer" id="timer">00:00</div>
+
+  <div class="user-pip">
+    <video id="userVideo" autoplay playsinline muted></video>
+    <canvas id="snapCanvas" style="display:none"></canvas>
+    <div class="pip-label" id="pipLabel">You</div>
+  </div>
+
+  <div class="speech-area">
+    <div class="speech-bubble empty" id="speechBubble"></div>
+    <div class="waveform" id="waveform">
+      <div class="wbar"></div><div class="wbar"></div><div class="wbar"></div>
+      <div class="wbar"></div><div class="wbar"></div><div class="wbar"></div>
+      <div class="wbar"></div>
+    </div>
+  </div>
+
+  <div class="listen-indicator" id="listenIndicator">
+    <div class="listen-dot"></div>
+    <span id="listenText">listening...</span>
+  </div>
+
+  <div class="mem-sidebar" id="memSidebar">
+    <div class="mem-sidebar-label">ARIA knows</div>
+    <div id="memRows"><div class="mem-row" style="color:var(--muted);font-style:italic">Hover to see</div></div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <div class="controls">
+    <button class="ctrl-btn btn-cam" id="camBtn" onclick="toggleCam()" title="Camera">📷</button>
+    <button class="ctrl-btn btn-mic listening" id="micBtn" onclick="toggleMic()" title="Mic">🎙</button>
+    <button class="ctrl-btn btn-end" onclick="endCall()" title="End call">📵</button>
+  </div>
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────
+let NAME='', BIO='';
+let mem={};
+let hist=[];
+let stream=null;
+let busy=false;
+let muted=false;
+let camOff=false;
+let callSeconds=0;
+let timerInterval=null;
+let faceInterval=null;
+let autoTalkInterval=null;
+let recognition=null;
+let listening=false;
+let inFrame=true;
+let frameCheckInterval=null;
+let hasSpokenAboutLeaving=false;
+let lastSpoke=Date.now();
+let speechSynth=window.speechSynthesis;
+let currentUtterance=null;
+let setupDone=false;
+
+// ── Setup ──────────────────────────────────────────────
+async function startCall(){
+  NAME=document.getElementById('nameIn').value.trim()||'friend';
+  BIO=document.getElementById('bioIn').value.trim();
+  loadMem();
+
+  try{
+    stream=await navigator.mediaDevices.getUserMedia({video:true,audio:false});
+    document.getElementById('userVideo').srcObject=stream;
+    document.getElementById('pipLabel').textContent=NAME;
+  }catch(e){
+    showToast('Camera access needed for ARIA to see you');
+  }
+
+  document.getElementById('setup').style.display='none';
+  document.getElementById('call').style.display='block';
+
+  startTimer();
+  startListening();
+  startFaceReading();
+  startAutoTalk();
+  setupDone=true;
+
+  // ARIA speaks first
+  setTimeout(()=>{
+    const greeting = BIO
+      ? `Hey ${NAME}! Oh good, you're here. ${BIO ? "So you're into "+BIO.toLowerCase()+"? We've got a lot to talk about." : "What's on your mind?"}`
+      : `Hey ${NAME}! Finally, a real conversation. How are you actually doing?`;
+    ariaSpeak(greeting);
+  }, 1200);
+}
+
+// ── Timer ──────────────────────────────────────────────
+function startTimer(){
+  timerInterval=setInterval(()=>{
+    callSeconds++;
+    const m=String(Math.floor(callSeconds/60)).padStart(2,'0');
+    const s=String(callSeconds%60).padStart(2,'0');
+    document.getElementById('timer').textContent=`${m}:${s}`;
+  },1000);
+}
+
+// ── Memory ─────────────────────────────────────────────
+function loadMem(){
+  try{mem=JSON.parse(localStorage.getItem('aria_video_mem')||'{}');}
+  catch{mem={};}
+  if(NAME)mem.name=NAME;
+  if(BIO)mem.bio=BIO;
+}
+
+function saveMem(update){
+  if(!update)return;
+  Object.entries(update).forEach(([k,v])=>{if(v&&v!=='unknown')mem[k]=v;});
+  localStorage.setItem('aria_video_mem',JSON.stringify(mem));
+  renderMemSidebar();
+}
+
+function memStr(){
+  const parts=[];
+  if(mem.name)parts.push(`Name: ${mem.name}`);
+  if(mem.bio)parts.push(`About: ${mem.bio}`);
+  if(mem.mood)parts.push(`Mood: ${mem.mood}`);
+  if(mem.goal)parts.push(`Goal: ${mem.goal}`);
+  if(mem.topic)parts.push(`Talking about: ${mem.topic}`);
+  return parts.join('\n')||'New conversation.';
+}
+
+function renderMemSidebar(){
+  const rows=document.getElementById('memRows');
+  const items=[];
+  if(mem.mood)items.push({l:'mood',v:mem.mood});
+  if(mem.goal)items.push({l:'goal',v:mem.goal});
+  if(mem.topic)items.push({l:'topic',v:mem.topic});
+  if(!items.length)return;
+  rows.innerHTML=items.map(i=>`<div class="mem-row"><span>${i.l}:</span> ${i.v}</div>`).join('');
+}
+
+// ── Capture frame ──────────────────────────────────────
+function captureFrame(){
+  const video=document.getElementById('userVideo');
+  const canvas=document.getElementById('snapCanvas');
+  if(!video.videoWidth)return null;
+  canvas.width=video.videoWidth;canvas.height=video.videoHeight;
+  const ctx=canvas.getContext('2d');
+  ctx.translate(canvas.width,0);ctx.scale(-1,1);
+  ctx.drawImage(video,0,0);
+  return canvas.toDataURL('image/jpeg',0.7).split(',')[1];
+}
+
+function checkInFrame(){
+  const video=document.getElementById('userVideo');
+  const canvas=document.getElementById('snapCanvas');
+  if(!video.videoWidth)return true;
+  canvas.width=32;canvas.height=32;
+  const ctx=canvas.getContext('2d');
+  ctx.drawImage(video,0,0,32,32);
+  const data=ctx.getImageData(0,0,32,32).data;
+  let bright=0;
+  for(let i=0;i<data.length;i+=4)bright+=(data[i]+data[i+1]+data[i+2])/3;
+  bright/=(data.length/4);
+  return bright>15; // very dark = no face
+}
+
+// ── Face reading ───────────────────────────────────────
+function startFaceReading(){
+  faceInterval=setInterval(async()=>{
+    if(busy||muted)return;
+    const nowInFrame=checkInFrame();
+
+    if(!nowInFrame&&inFrame){
+      inFrame=false;
+      if(!hasSpokenAboutLeaving){
+        hasSpokenAboutLeaving=true;
+        await ariaReact(null,false);
+        setTimeout(()=>{hasSpokenAboutLeaving=false;},30000);
+      }
+    }else if(nowInFrame&&!inFrame){
+      inFrame=true;
+    }
+  },3000);
+}
+
+// ── Auto talk ──────────────────────────────────────────
+function startAutoTalk(){
+  autoTalkInterval=setInterval(async()=>{
+    if(busy||muted)return;
+    const silentSecs=(Date.now()-lastSpoke)/1000;
+    // If silent for 12+ seconds, ARIA keeps conversation going
+    if(silentSecs>12&&inFrame){
+      await ariaReact(captureFrame(),true,true);
+    }
+  },5000);
+}
+
+// ── ARIA reacts ────────────────────────────────────────
+async function ariaReact(image,inFrame,proactive=false){
+  if(busy)return;
+  busy=true;
+  setListening(false);
+
+  try{
+    const payload={
+      messages:hist.length?hist:[{role:'user',content:proactive?'(keep the conversation going naturally — ask something, react, be present)':'(say hello)'}],
+      memory:memStr(),
+      image:image||null,
+      in_frame:inFrame
+    };
+
+    const res=await fetch('/chat',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(payload)
+    });
+
+    const data=await res.json();
+    if(data.error)throw new Error(data.error);
+
+    saveMem(data.mem);
+    await ariaSpeak(data.text);
+    hist.push({role:'assistant',content:data.text});
+    if(hist.length>20)hist=hist.slice(-20);
+
+  }catch(e){
+    console.error(e);
+    showToast('Connection issue — retrying...');
+  }
+
+  busy=false;
+  if(!muted)setListening(true);
+}
+
+// ── ARIA speaks ────────────────────────────────────────
+async function ariaSpeak(text){
+  const bubble=document.getElementById('speechBubble');
+  const waveform=document.getElementById('waveform');
+  const avatar=document.getElementById('ariaAvatar').parentElement.parentElement;
+
+  bubble.textContent=text;
+  bubble.classList.remove('empty');
+  waveform.classList.add('active');
+  document.getElementById('ariaPulse').parentElement.querySelector('.aria-avatar-big').parentElement.classList.add('speaking');
+  document.getElementById('callStatus').textContent='● Speaking';
+
+  // TTS
+  return new Promise(resolve=>{
+    if(currentUtterance)speechSynth.cancel();
+    const utt=new SpeechSynthesisUtterance(text);
+    utt.rate=1.05;utt.pitch=1.1;utt.volume=1;
+
+    // pick a warm female voice if available
+    const voices=speechSynth.getVoices();
+    const preferred=voices.find(v=>v.name.includes('Samantha')||v.name.includes('Karen')||v.name.includes('Moira')||v.name.includes('Female'));
+    if(preferred)utt.voice=preferred;
+
+    utt.onend=()=>{
+      waveform.classList.remove('active');
+      document.getElementById('ariaPulse').parentElement.querySelector('.aria-avatar-big').parentElement.classList.remove('speaking');
+      document.getElementById('callStatus').textContent='● Listening';
+      lastSpoke=Date.now();
+      resolve();
+    };
+
+    utt.onerror=()=>resolve();
+    currentUtterance=utt;
+    speechSynth.speak(utt);
+  });
+}
+
+// ── Speech recognition ─────────────────────────────────
+function startListening(){
+  if(!('webkitSpeechRecognition' in window||'SpeechRecognition' in window)){
+    showToast('Use Chrome for voice — ARIA can still see you though!');
+    return;
+  }
+
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  recognition=new SR();
+  recognition.continuous=true;
+  recognition.interimResults=true;
+  recognition.lang='en-US';
+
+  let finalTranscript='';
+  let silenceTimer=null;
+
+  recognition.onstart=()=>{
+    listening=true;
+    setListening(true);
+  };
+
+  recognition.onresult=e=>{
+    if(busy)return;
+    let interim='';
+    finalTranscript='';
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      if(e.results[i].isFinal)finalTranscript+=e.results[i][0].transcript;
+      else interim+=e.results[i][0].transcript;
+    }
+
+    // show what user is saying
+    if(interim||finalTranscript){
+      document.getElementById('listenText').textContent=`"${(interim||finalTranscript).slice(0,40)}..."`;
+    }
+
+    // stop ARIA if she's speaking
+    if((interim||finalTranscript)&&speechSynth.speaking){
+      speechSynth.cancel();
+      document.getElementById('waveform').classList.remove('active');
+    }
+
+    // process after silence
+    clearTimeout(silenceTimer);
+    if(finalTranscript){
+      silenceTimer=setTimeout(async()=>{
+        const msg=finalTranscript.trim();
+        if(!msg||busy)return;
+        finalTranscript='';
+        document.getElementById('listenText').textContent='listening...';
+
+        hist.push({role:'user',content:msg});
+        const img=captureFrame();
+        await ariaReact(img,inFrame);
+      },1500);
+    }
+  };
+
+  recognition.onend=()=>{
+    listening=false;
+    // restart automatically
+    if(!muted&&setupDone){
+      setTimeout(()=>{
+        try{recognition.start();}catch{}
+      },300);
+    }
+  };
+
+  recognition.onerror=e=>{
+    if(e.error==='no-speech')return;
+    setTimeout(()=>{
+      if(!muted&&setupDone)try{recognition.start();}catch{}
+    },1000);
+  };
+
+  try{recognition.start();}catch{}
+}
+
+function setListening(on){
+  const btn=document.getElementById('micBtn');
+  const ind=document.getElementById('listenIndicator');
+  if(on&&!muted){
+    btn.classList.add('listening');btn.classList.remove('muted');
+    ind.classList.add('show');
+  }else{
+    btn.classList.remove('listening');
+    ind.classList.remove('show');
+  }
+}
+
+// ── Controls ───────────────────────────────────────────
+function toggleMic(){
+  muted=!muted;
+  const btn=document.getElementById('micBtn');
+  if(muted){
+    btn.classList.add('muted');btn.classList.remove('listening');
+    btn.textContent='🔇';
+    recognition?.stop();
+    setListening(false);
+    showToast('Microphone muted');
+  }else{
+    btn.classList.remove('muted');
+    btn.textContent='🎙';
+    showToast('Microphone on');
+    try{recognition?.start();}catch{}
+    setListening(true);
+  }
+}
+
+function toggleCam(){
+  camOff=!camOff;
+  const btn=document.getElementById('camBtn');
+  if(stream){
+    stream.getVideoTracks().forEach(t=>t.enabled=!camOff);
+  }
+  btn.textContent=camOff?'📵':'📷';
+  showToast(camOff?'Camera off':'Camera on');
+}
+
+function endCall(){
+  if(!confirm('End call with ARIA?'))return;
+  clearInterval(timerInterval);
+  clearInterval(faceInterval);
+  clearInterval(autoTalkInterval);
+  recognition?.stop();
+  speechSynth.cancel();
+  stream?.getTracks().forEach(t=>t.stop());
+  document.getElementById('call').style.display='none';
+  document.getElementById('setup').style.display='flex';
+  setupDone=false;hist=[];
+}
+
+// ── Toast ──────────────────────────────────────────────
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2500);
+}
+
+// load voices
+speechSynthesis.onvoiceschanged=()=>speechSynthesis.getVoices();
+</script>
+</body>
+</html>
