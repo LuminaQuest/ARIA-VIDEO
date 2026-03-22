@@ -1,787 +1,136 @@
 <!DOCTYPE html>
+
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ARIA</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{
-  --bg:#07090f;
-  --border:rgba(255,255,255,0.07);
-  --text:#dde1ec;
-  --muted:rgba(221,225,236,0.38);
-  --blue:#5b8dee;
-  --blue-glow:rgba(91,141,238,0.18);
-  --green:#36c97a;
-  --red:#e85555;
-  --purple:#9d7fe8;
-}
-html,body{height:100%;font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);overflow:hidden}
-
-/* ambient background */
-body::before{
-  content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
-  background:
-    radial-gradient(ellipse 55% 45% at 15% 15%, rgba(91,141,238,0.06) 0%,transparent 65%),
-    radial-gradient(ellipse 45% 55% at 85% 85%, rgba(157,127,232,0.05) 0%,transparent 65%),
-    radial-gradient(ellipse 35% 35% at 50% 100%, rgba(54,201,122,0.03) 0%,transparent 60%);
+body {
+  margin:0;
+  background:#0b0f1a;
+  color:white;
+  font-family:Arial, sans-serif;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  height:100vh;
 }
 
-/* subtle grid */
-body::after{
-  content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
-  background-image:
-    linear-gradient(rgba(255,255,255,0.012) 1px,transparent 1px),
-    linear-gradient(90deg,rgba(255,255,255,0.012) 1px,transparent 1px);
-  background-size:52px 52px;
+button {
+  padding:12px 20px;
+  border:none;
+  border-radius:8px;
+  background:#5b8dee;
+  color:white;
+  font-size:16px;
+  cursor:pointer;
 }
 
-/* ── SETUP ─────────────────────────────────────────── */
-#setup{
-  position:fixed;inset:0;z-index:300;
-  display:flex;align-items:center;justify-content:center;
-  background:var(--bg);
+#output {
+  margin-top:20px;
+  max-width:500px;
+  text-align:center;
 }
-
-.card{
-  width:100%;max-width:390px;
-  background:rgba(255,255,255,0.025);
-  border:1px solid var(--border);
-  border-radius:22px;padding:40px 32px;
-  text-align:center;position:relative;z-index:1;
-}
-
-.logo{
-  font-size:1.6rem;font-weight:600;
-  letter-spacing:0.22em;color:var(--text);
-  margin-bottom:6px;
-}
-.logo b{color:var(--blue);font-weight:600}
-
-.tagline{
-  font-size:0.8rem;color:var(--muted);
-  margin-bottom:30px;line-height:1.6;font-weight:300;
-}
-
-.f{margin-bottom:13px;text-align:left}
-.f label{
-  display:block;font-size:0.62rem;font-weight:600;
-  color:var(--muted);letter-spacing:0.12em;
-  text-transform:uppercase;margin-bottom:5px;
-}
-.f input{
-  width:100%;padding:11px 14px;
-  background:rgba(255,255,255,0.035);
-  border:1px solid var(--border);border-radius:10px;
-  color:var(--text);font-family:'Inter',sans-serif;
-  font-size:0.875rem;outline:none;transition:border-color 0.2s;
-}
-.f input:focus{border-color:rgba(91,141,238,0.5)}
-.f input::placeholder{color:var(--muted)}
-
-.note{
-  font-size:0.67rem;color:var(--muted);
-  margin:4px 0 22px;text-align:left;line-height:1.55;
-}
-
-.go-btn{
-  width:100%;padding:13px;border:none;
-  border-radius:11px;background:var(--blue);
-  color:#fff;font-family:'Inter',sans-serif;
-  font-size:0.88rem;font-weight:600;cursor:pointer;
-  transition:all 0.2s;letter-spacing:0.02em;
-}
-.go-btn:hover{
-  background:#4a7de0;
-  transform:translateY(-1px);
-  box-shadow:0 6px 22px rgba(91,141,238,0.28);
-}
-
-/* ── CALL ──────────────────────────────────────────── */
-#call{position:fixed;inset:0;z-index:200;display:none}
-
-/* deep background */
-.scene{
-  position:absolute;inset:0;
-  background:linear-gradient(155deg,#080c1f 0%,#07090f 45%,#0c080f 100%);
-  display:flex;align-items:center;justify-content:center;
-}
-
-/* ARIA orb */
-.orb-wrap{
-  position:relative;
-  display:flex;align-items:center;justify-content:center;
-}
-
-.orb{
-  width:168px;height:168px;border-radius:50%;
-  background:radial-gradient(circle at 38% 32%,#141e38,#0a0d1a);
-  border:1px solid rgba(91,141,238,0.18);
-  position:relative;z-index:2;
-  transition:all 0.5s ease;
-  box-shadow:
-    0 0 50px rgba(91,141,238,0.06),
-    inset 0 0 40px rgba(91,141,238,0.04);
-}
-
-/* inner glow dot */
-.orb::after{
-  content:'';position:absolute;
-  width:40px;height:40px;border-radius:50%;
-  background:radial-gradient(circle,rgba(91,141,238,0.4),transparent);
-  top:38px;left:44px;
-  transition:all 0.5s;
-}
-
-.orb.speaking{
-  border-color:rgba(91,141,238,0.45);
-  box-shadow:
-    0 0 80px rgba(91,141,238,0.18),
-    0 0 120px rgba(91,141,238,0.08),
-    inset 0 0 50px rgba(91,141,238,0.08);
-}
-
-.orb.speaking::after{
-  background:radial-gradient(circle,rgba(91,141,238,0.7),transparent);
-  width:56px;height:56px;top:30px;left:38px;
-}
-
-.orb.happy{border-color:rgba(54,201,122,0.35);box-shadow:0 0 70px rgba(54,201,122,0.12),inset 0 0 40px rgba(54,201,122,0.05)}
-.orb.happy::after{background:radial-gradient(circle,rgba(54,201,122,0.5),transparent)}
-.orb.thinking{border-color:rgba(157,127,232,0.35);box-shadow:0 0 70px rgba(157,127,232,0.12),inset 0 0 40px rgba(157,127,232,0.05)}
-.orb.thinking::after{background:radial-gradient(circle,rgba(157,127,232,0.5),transparent)}
-.orb.excited{border-color:rgba(245,180,60,0.35);box-shadow:0 0 70px rgba(245,180,60,0.12),inset 0 0 40px rgba(245,180,60,0.05)}
-.orb.excited::after{background:radial-gradient(circle,rgba(245,180,60,0.5),transparent)}
-.orb.sad{border-color:rgba(120,160,220,0.3);box-shadow:0 0 60px rgba(120,160,220,0.1),inset 0 0 40px rgba(120,160,220,0.05)}
-.orb.sarcastic{border-color:rgba(220,120,120,0.3);box-shadow:0 0 60px rgba(220,120,120,0.1),inset 0 0 40px rgba(220,120,120,0.05)}
-
-/* orbit rings */
-.ring{
-  position:absolute;border-radius:50%;
-  border:1px solid rgba(91,141,238,0.06);
-  animation:breathe 4s ease-in-out infinite;
-  pointer-events:none;
-}
-.r1{width:220px;height:220px;animation-delay:0s}
-.r2{width:280px;height:280px;animation-delay:0.9s;border-color:rgba(91,141,238,0.04)}
-.r3{width:350px;height:350px;animation-delay:1.8s;border-color:rgba(91,141,238,0.025)}
-
-@keyframes breathe{
-  0%,100%{opacity:0.5;transform:scale(1)}
-  50%{opacity:1;transform:scale(1.025)}
-}
-
-.orb.speaking ~ .r1,.orb.speaking ~ .r2,.orb.speaking ~ .r3{
-  animation:breathe-fast 0.7s ease-in-out infinite;
-}
-@keyframes breathe-fast{
-  0%,100%{opacity:0.4;transform:scale(1)}
-  50%{opacity:1;transform:scale(1.05)}
-}
-
-/* waveform under orb */
-.wave{
-  display:flex;align-items:center;gap:3px;
-  height:22px;margin-top:22px;
-  opacity:0;transition:opacity 0.4s;
-  position:relative;z-index:3;
-}
-.wave.on{opacity:1}
-.wb{width:2.5px;border-radius:2px;background:var(--blue);animation:wv 0.75s ease-in-out infinite}
-.wb:nth-child(1){animation-delay:0s}
-.wb:nth-child(2){animation-delay:0.1s}
-.wb:nth-child(3){animation-delay:0.2s}
-.wb:nth-child(4){animation-delay:0.3s}
-.wb:nth-child(5){animation-delay:0.4s}
-.wb:nth-child(6){animation-delay:0.3s}
-.wb:nth-child(7){animation-delay:0.2s}
-.wb:nth-child(8){animation-delay:0.1s}
-.wb:nth-child(9){animation-delay:0s}
-@keyframes wv{0%,100%{height:3px;opacity:0.5}50%{height:18px;opacity:1}}
-
-/* top bar */
-.topbar{
-  position:absolute;top:0;left:0;right:0;
-  padding:18px 24px;
-  display:flex;align-items:flex-start;justify-content:space-between;
-  z-index:10;
-}
-.tl-name{font-size:0.82rem;font-weight:600;letter-spacing:0.06em;color:var(--text)}
-.tl-status{
-  font-size:0.68rem;color:var(--muted);
-  display:flex;align-items:center;gap:5px;margin-top:3px;
-}
-.sdot{width:5px;height:5px;border-radius:50%}
-.sdot.g{background:var(--green);box-shadow:0 0 5px var(--green)}
-.sdot.b{background:var(--blue);animation:bpulse 1s infinite}
-@keyframes bpulse{0%,100%{opacity:1}50%{opacity:0.25}}
-.timer{font-size:0.75rem;color:var(--muted);font-variant-numeric:tabular-nums;letter-spacing:0.04em}
-
-/* user pip */
-.pip{
-  position:absolute;bottom:128px;right:20px;
-  width:108px;height:144px;border-radius:14px;
-  overflow:hidden;
-  border:1px solid rgba(255,255,255,0.09);
-  background:#0c0e14;
-  box-shadow:0 6px 28px rgba(0,0,0,0.55);
-  z-index:10;
-}
-#uv{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);display:block}
-#sc{display:none}
-.pip-label{
-  position:absolute;bottom:5px;left:50%;
-  transform:translateX(-50%);
-  font-size:0.58rem;color:rgba(255,255,255,0.5);
-  background:rgba(0,0,0,0.55);
-  padding:2px 8px;border-radius:100px;white-space:nowrap;
-}
-
-/* what user is saying */
-.usay{
-  position:absolute;
-  bottom:228px;left:50%;transform:translateX(-50%);
-  font-size:0.75rem;color:var(--muted);
-  background:rgba(91,141,238,0.08);
-  border:1px solid rgba(91,141,238,0.14);
-  border-radius:100px;padding:5px 14px;
-  opacity:0;transition:opacity 0.25s;
-  white-space:nowrap;max-width:78%;
-  overflow:hidden;text-overflow:ellipsis;
-  z-index:10;
-}
-.usay.show{opacity:1}
-
-/* aria speech bubble */
-.bwrap{
-  position:absolute;
-  bottom:152px;left:50%;transform:translateX(-50%);
-  width:86%;max-width:500px;text-align:center;
-  z-index:10;
-}
-.bub{
-  display:inline-block;
-  background:rgba(12,15,26,0.88);
-  backdrop-filter:blur(14px);
-  -webkit-backdrop-filter:blur(14px);
-  border:1px solid rgba(255,255,255,0.07);
-  border-radius:16px;padding:15px 20px;
-  font-size:0.92rem;line-height:1.72;
-  font-weight:300;color:var(--text);
-  text-align:left;max-width:100%;
-  min-height:50px;transition:opacity 0.3s;
-}
-.bub.gone{opacity:0}
-
-/* listening bar */
-.lbar{
-  position:absolute;bottom:100px;left:50%;
-  transform:translateX(-50%);
-  font-size:0.68rem;color:var(--muted);
-  display:flex;align-items:center;gap:6px;
-  opacity:0;transition:opacity 0.3s;z-index:10;
-}
-.lbar.show{opacity:1}
-.ldot{width:5px;height:5px;border-radius:50%;background:var(--green);animation:ldp 1.1s infinite}
-@keyframes ldp{0%,100%{opacity:1}50%{opacity:0.15}}
-
-/* controls */
-.controls{
-  position:absolute;bottom:0;left:0;right:0;
-  padding:18px 20px 24px;
-  display:flex;align-items:center;justify-content:center;gap:14px;
-  background:linear-gradient(transparent,rgba(0,0,0,0.65));
-  z-index:10;
-}
-.cb{
-  width:50px;height:50px;border-radius:50%;border:none;
-  display:flex;align-items:center;justify-content:center;
-  cursor:pointer;transition:all 0.2s;font-size:1rem;
-  backdrop-filter:blur(8px);
-}
-.cb:hover{transform:scale(1.09)}
-.cb:active{transform:scale(0.94)}
-
-.cb-mic{
-  background:rgba(255,255,255,0.08);
-  border:1px solid rgba(255,255,255,0.1);
-  color:var(--text);
-}
-.cb-mic.on{
-  background:rgba(54,201,122,0.12);
-  border-color:rgba(54,201,122,0.28);
-  color:var(--green);
-  animation:mring 1.6s infinite;
-}
-@keyframes mring{
-  0%,100%{box-shadow:0 0 0 0 rgba(54,201,122,0.25)}
-  50%{box-shadow:0 0 0 8px rgba(54,201,122,0)}
-}
-.cb-mic.muted{
-  background:rgba(232,85,85,0.12);
-  border-color:rgba(232,85,85,0.28);
-  color:var(--red);
-}
-.cb-end{
-  background:var(--red);color:#fff;
-  width:56px;height:56px;font-size:1.2rem;
-}
-.cb-end:hover{background:#d44}
-.cb-cam{
-  background:rgba(255,255,255,0.06);
-  border:1px solid rgba(255,255,255,0.08);
-  color:var(--muted);font-size:0.9rem;
-}
-
-/* toast */
-.toast{
-  position:absolute;top:68px;left:50%;transform:translateX(-50%);
-  background:rgba(8,10,18,0.92);backdrop-filter:blur(10px);
-  border:1px solid var(--border);border-radius:100px;
-  padding:6px 15px;font-size:0.72rem;color:var(--muted);
-  opacity:0;transition:opacity 0.25s;pointer-events:none;
-  white-space:nowrap;z-index:20;
-}
-.toast.show{opacity:1}
-
-/* mic icon svg */
-.mic-icon{width:18px;height:18px;fill:currentColor}
-.cam-icon{width:16px;height:16px;fill:currentColor}
-.end-icon{width:20px;height:20px;fill:currentColor}
 </style>
+
 </head>
+
 <body>
 
-<!-- ── SETUP ── -->
-<div id="setup">
-  <div class="card">
-    <div class="logo">A<b>R</b>IA</div>
-    <div class="tagline">Not an assistant. A real conversation.</div>
+<h2>ARIA Voice Call</h2>
 
-    <div class="f">
-      <label>Your name</label>
-      <input type="text" id="nameIn" placeholder="What should ARIA call you?">
-    </div>
-    <div class="f">
-      <label>A bit about you</label>
-      <input type="text" id="bioIn" placeholder="e.g. building something, stressed about exams...">
-    </div>
-    <div class="note">Runs on Claude AI. Set ANTHROPIC_API_KEY as environment variable on Railway.</div>
-    <button class="go-btn" onclick="boot()">Start call</button>
-  </div>
-</div>
+<button onclick="startListening()">🎤 Talk</button>
 
-<!-- ── CALL ── -->
-<div id="call">
-  <div class="scene">
-    <div style="display:flex;flex-direction:column;align-items:center;position:relative;z-index:1">
-      <div class="orb-wrap">
-        <div class="orb" id="orb"></div>
-        <div class="ring r1"></div>
-        <div class="ring r2"></div>
-        <div class="ring r3"></div>
-      </div>
-      <div class="wave" id="wave">
-        <div class="wb"></div><div class="wb"></div><div class="wb"></div>
-        <div class="wb"></div><div class="wb"></div><div class="wb"></div>
-        <div class="wb"></div><div class="wb"></div><div class="wb"></div>
-      </div>
-    </div>
-  </div>
-
-  <div class="topbar">
-    <div>
-      <div class="tl-name">ARIA</div>
-      <div class="tl-status">
-        <div class="sdot g" id="sdot"></div>
-        <span id="stext">connected</span>
-      </div>
-    </div>
-    <div class="timer" id="timer">00:00</div>
-  </div>
-
-  <div class="pip">
-    <video id="uv" autoplay playsinline muted></video>
-    <canvas id="sc"></canvas>
-    <div class="pip-label" id="pipLabel">you</div>
-  </div>
-
-  <div class="usay" id="usay"></div>
-
-  <div class="bwrap">
-    <div class="bub gone" id="bub"></div>
-  </div>
-
-  <div class="lbar" id="lbar">
-    <div class="ldot"></div>
-    <span>listening</span>
-  </div>
-
-  <div class="controls">
-    <button class="cb cb-cam" id="camBtn" onclick="toggleCam()" title="Camera">
-      <svg class="cam-icon" viewBox="0 0 24 24"><path d="M17 10.5V7a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h12a1 1 0 001-1v-3.5l4 4v-11l-4 4z"/></svg>
-    </button>
-    <button class="cb cb-mic on" id="micBtn" onclick="toggleMic()" title="Mic">
-      <svg class="mic-icon" viewBox="0 0 24 24"><path d="M12 1a4 4 0 00-4 4v7a4 4 0 008 0V5a4 4 0 00-4-4zm-2 18.93V21h4v-1.07A8.001 8.001 0 0020 12h-2a6 6 0 01-12 0H4a8.001 8.001 0 006 7.93z"/></svg>
-    </button>
-    <button class="cb cb-end" onclick="endCall()" title="End call">
-      <svg class="end-icon" viewBox="0 0 24 24"><path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1-9.4 0-17-7.6-17-17 0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1L6.6 10.8z"/></svg>
-    </button>
-  </div>
-
-  <div class="toast" id="toast"></div>
-</div>
+<div id="output">Start speaking...</div>
 
 <script>
-// ── state ─────────────────────────────────────────────
-let NAME='', BIO='';
-let mem={}, hist=[], busy=false;
-let muted=false, camOff=false;
-let stream=null, recognition=null;
-let callSecs=0, timerInt=null, faceInt=null, autoInt=null;
-let lastTalked=Date.now(), inFrame=true, toldLeave=false;
-let synth=window.speechSynthesis, curUtt=null, setupDone=false;
-let interim='', silTimer=null;
+let recognition;
+let synth = window.speechSynthesis;
+let busy = false;
 
-// orb emotion → css class
-const EMOTIONS={
-  neutral:'', happy:'happy', laughing:'happy',
-  thinking:'thinking', surprised:'thinking',
-  sad:'sad', sarcastic:'sarcastic',
-  excited:'excited', listening:''
-};
+function startListening() {
+  if (!('webkitSpeechRecognition' in window)) {
+    alert("Use Chrome browser");
+    return;
+  }
 
-// ── boot ─────────────────────────────────────────────
-async function boot(){
-  NAME = document.getElementById('nameIn').value.trim() || 'friend';
-  BIO  = document.getElementById('bioIn').value.trim();
-  loadMem();
-  document.getElementById('pipLabel').textContent = NAME.toLowerCase();
+  recognition = new webkitSpeechRecognition();
+  recognition.lang = "en-US";
+  recognition.continuous = false;
+  recognition.interimResults = false;
 
-  try{
-    stream = await navigator.mediaDevices.getUserMedia({video:true, audio:false});
-    document.getElementById('uv').srcObject = stream;
-  } catch(e){ toast('Camera blocked — ARIA can still hear you'); }
+  recognition.onresult = async (event) => {
 
-  document.getElementById('setup').style.display = 'none';
-  document.getElementById('call').style.display  = 'block';
-  setupDone = true;
-
-  startTimer();
-  startMic();
-  startFaceLoop();
-  startAutoKeep();
-
-  // ARIA speaks first after 1s
-  setTimeout(()=>{
-    const g = BIO
-      ? `Hey ${NAME}. ${BIO} — okay I already want to know more about that. But first, how are you doing? Actually doing.`
-      : `Hey ${NAME}. Finally, a real conversation. How are you actually doing right now?`;
-    speak(g, 'happy');
-  }, 1000);
-}
-
-// ── memory ────────────────────────────────────────────
-function loadMem(){
-  try{ mem = JSON.parse(localStorage.getItem('aria_mem') || '{}'); }
-  catch{ mem = {}; }
-  if(NAME) mem.name = NAME;
-  if(BIO)  mem.about = BIO;
-}
-
-function saveMem(u){
-  if(!u || !Object.keys(u).length) return;
-  Object.entries(u).forEach(([k,v])=>{
-    if(v && !['','unknown','n/a','none'].includes((v+'').toLowerCase().trim()))
-      mem[k] = v;
-  });
-  localStorage.setItem('aria_mem', JSON.stringify(mem));
-}
-
-function memStr(){
-  const p = [];
-  if(mem.name)  p.push(`Name: ${mem.name}`);
-  if(mem.about) p.push(`About: ${mem.about}`);
-  if(mem.mood)  p.push(`Current mood: ${mem.mood}`);
-  if(mem.topic) p.push(`Talking about: ${mem.topic}`);
-  if(mem.goal)  p.push(`Goal: ${mem.goal}`);
-  return p.join('\n') || 'First conversation.';
-}
-
-// ── capture ───────────────────────────────────────────
-function snap(){
-  const v = document.getElementById('uv');
-  const c = document.getElementById('sc');
-  if(!v.videoWidth) return null;
-  c.width = v.videoWidth; c.height = v.videoHeight;
-  const ctx = c.getContext('2d');
-  ctx.translate(c.width, 0); ctx.scale(-1, 1);
-  ctx.drawImage(v, 0, 0);
-  return c.toDataURL('image/jpeg', 0.65).split(',')[1];
-}
-
-function framePresent(){
-  const v = document.getElementById('uv');
-  const c = document.getElementById('sc');
-  if(!v.videoWidth) return true;
-  c.width = 32; c.height = 32;
-  const ctx = c.getContext('2d');
-  ctx.drawImage(v, 0, 0, 32, 32);
-  const d = ctx.getImageData(0,0,32,32).data;
-  let b = 0;
-  for(let i=0; i<d.length; i+=4) b += (d[i]+d[i+1]+d[i+2])/3;
-  return (b / (d.length/4)) > 18;
-}
-
-// ── face loop ─────────────────────────────────────────
-function startFaceLoop(){
-  faceInt = setInterval(()=>{
-    const now = framePresent();
-    if(!now && inFrame){
-      inFrame = false;
-      if(!toldLeave){
-        toldLeave = true;
-        callAPI(null, '(person just walked away from camera — react once naturally)', false);
-        setTimeout(()=>toldLeave=false, 45000);
-      }
-    } else if(now && !inFrame){
-      inFrame = true;
+    // INTERRUPT if ARIA is speaking
+    if (synth.speaking) {
+      synth.cancel();
+      busy = false;
     }
-  }, 3000);
+
+    const text = event.results[0][0].transcript.trim();
+
+    if (!text || busy) return;
+
+    document.getElementById("output").innerText = "You: " + text;
+
+    await sendMessage(text);
+  };
+
+  recognition.onerror = (e) => {
+    console.log("Speech error:", e);
+  };
+
+  recognition.start();
 }
 
-// ── auto keep alive ───────────────────────────────────
-function startAutoKeep(){
-  autoInt = setInterval(()=>{
-    if(busy || muted || !inFrame) return;
-    if((Date.now() - lastTalked)/1000 > 16){
-      callAPI(snap(), '(keep conversation going — react, ask something, be present)', false);
-    }
-  }, 5000);
-}
+async function sendMessage(text) {
+  try {
+    busy = true;
 
-// ── api call ──────────────────────────────────────────
-async function callAPI(image, userMsg, addToHist=true){
-  if(busy) return;
-  busy = true;
-  setStatus('thinking', 'b');
-
-  if(userMsg) hist.push({role:'user', content: userMsg});
-
-  try{
-    const body = {
-      messages : hist.length ? hist : [{role:'user', content:'say hello naturally'}],
-      memory   : memStr(),
-      image    : image || null,
-      in_frame : inFrame
-    };
-
-    const res  = await fetch('/chat', {
-      method  : 'POST',
-      headers : {'Content-Type':'application/json'},
-      body    : JSON.stringify(body)
+    const res = await fetch("http://127.0.0.1:5000/chat", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        messages: [{ role: "user", content: text }],
+        memory: ""
+      })
     });
 
-    if(!res.ok) throw new Error(`Server error ${res.status}`);
-
     const data = await res.json();
-    if(data.error) throw new Error(data.error);
 
-    saveMem(data.mem);
+    if (data.error) {
+      throw new Error(data.error);
+    }
 
-    hist.push({role:'assistant', content: data.text});
-    if(hist.length > 26) hist = hist.slice(-26);
+    document.getElementById("output").innerText += "\nARIA: " + data.text;
 
-    await speak(data.text, data.emotion || 'neutral');
+    speak(data.text);
 
-  } catch(e){
-    console.error(e);
-    toast('Connection issue');
-    busy = false;
-    setStatus('listening', 'g');
+  } catch (err) {
+    console.error(err);
+    document.getElementById("output").innerText = "Error connecting to backend";
   }
 
   busy = false;
-  if(!muted) setStatus('listening', 'g');
 }
 
-// ── speak ─────────────────────────────────────────────
-async function speak(text, emotion='neutral'){
-  const orb  = document.getElementById('orb');
-  const wave = document.getElementById('wave');
-  const bub  = document.getElementById('bub');
+function speak(text) {
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.rate = 1.05;
+  utter.pitch = 1.1;
 
-  // set orb emotion class
-  orb.className = 'orb speaking ' + (EMOTIONS[emotion] || '');
-  wave.classList.add('on');
-  bub.textContent = text;
-  bub.classList.remove('gone');
-  setStatus('speaking', 'b');
-  showListen(false);
-
-  return new Promise(res=>{
-    if(curUtt){ synth.cancel(); curUtt = null; }
-
-    const u = new SpeechSynthesisUtterance(text);
-    u.rate   = 1.07;
-    u.pitch  = 1.04;
-    u.volume = 1;
-
-    const voices = synth.getVoices();
-    const pick = voices.find(v =>
-      v.name.includes('Samantha') || v.name.includes('Karen') ||
-      v.name.includes('Moira')    || v.name.includes('Victoria') ||
-      (v.lang.startsWith('en') && v.name.toLowerCase().includes('female'))
-    ) || voices.find(v => v.lang.startsWith('en-'));
-    if(pick) u.voice = pick;
-
-    u.onend = ()=>{
-      orb.className = 'orb';
-      wave.classList.remove('on');
-      setStatus('listening', 'g');
-      showListen(true);
-      lastTalked = Date.now();
-      curUtt = null;
-      res();
-    };
-    u.onerror = ()=>{ orb.className='orb'; wave.classList.remove('on'); res(); };
-
-    curUtt = u;
-    synth.speak(u);
-  });
-}
-
-// ── mic ───────────────────────────────────────────────
-function startMic(){
-  if(!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)){
-    toast('Use Chrome for voice input'); return;
-  }
-
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  recognition = new SR();
-  recognition.continuous     = true;
-  recognition.interimResults = true;
-  recognition.lang           = 'en-US';
-
-  recognition.onstart = ()=>{ if(!muted) showListen(true); };
-
-  recognition.onresult = e=>{
-    if(muted) return;
-    let fin='', intr='';
-    for(let i=e.resultIndex; i<e.results.length; i++){
-      if(e.results[i].isFinal) fin  += e.results[i][0].transcript;
-      else                     intr += e.results[i][0].transcript;
-    }
-
-    const said = (fin||intr).trim();
-    if(said){
-      const el = document.getElementById('usay');
-      el.textContent = `"${said.slice(0,52)}${said.length>52?'…':''}"`;
-      el.classList.add('show');
-
-      // interrupt ARIA mid-sentence
-      if(synth.speaking && said.length > 2){
-        synth.cancel();
-        document.getElementById('orb').className  = 'orb';
-        document.getElementById('wave').classList.remove('on');
-        busy = false;
-      }
-    }
-
-    clearTimeout(silTimer);
-    if(fin){
-      interim = fin;
-      silTimer = setTimeout(async()=>{
-        const msg = interim.trim();
-        interim   = '';
-        document.getElementById('usay').classList.remove('show');
-        if(!msg || busy) return;
-        lastTalked = Date.now();
-        await callAPI(snap(), msg, true);
-      }, 1300);
-    }
+  utter.onend = () => {
+    busy = false;
   };
 
-  recognition.onend = ()=>{
-    showListen(false);
-    if(!muted && setupDone) setTimeout(()=>{ try{recognition.start();}catch{} }, 220);
-  };
-
-  recognition.onerror = e=>{
-    if(['no-speech','aborted'].includes(e.error)) return;
-    setTimeout(()=>{ if(!muted && setupDone) try{recognition.start();}catch{} }, 600);
-  };
-
-  try{ recognition.start(); }catch{}
+  synth.speak(utter);
 }
-
-function toggleMic(){
-  muted = !muted;
-  const btn = document.getElementById('micBtn');
-  if(muted){
-    btn.classList.remove('on'); btn.classList.add('muted');
-    btn.innerHTML = '<svg class="mic-icon" viewBox="0 0 24 24"><path d="M19 11h-1.7c0 .74-.16 1.43-.43 2.05l1.23 1.23c.56-.98.9-2.09.9-3.28zm-4.02.17c0-.06.02-.11.02-.17V5c0-1.66-1.34-3-3-3S9 3.34 9 5v.18l5.98 5.99zM4.27 3L3 4.27l6.01 6.01V11c0 1.66 1.33 3 2.99 3 .22 0 .44-.03.65-.08l1.66 1.66c-.71.33-1.5.52-2.31.52-2.76 0-5.3-2.1-5.3-5.1H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c.91-.13 1.77-.45 2.54-.9L19.73 21 21 19.73 4.27 3z"/></svg>';
-    recognition?.stop(); showListen(false);
-    toast('Mic muted');
-  } else {
-    btn.classList.remove('muted'); btn.classList.add('on');
-    btn.innerHTML = '<svg class="mic-icon" viewBox="0 0 24 24"><path d="M12 1a4 4 0 00-4 4v7a4 4 0 008 0V5a4 4 0 00-4-4zm-2 18.93V21h4v-1.07A8.001 8.001 0 0020 12h-2a6 6 0 01-12 0H4a8.001 8.001 0 006 7.93z"/></svg>';
-    toast('Mic on');
-    try{ recognition?.start(); }catch{}
-    showListen(true);
-  }
-}
-
-function toggleCam(){
-  camOff = !camOff;
-  stream?.getVideoTracks().forEach(t => t.enabled = !camOff);
-  const btn = document.getElementById('camBtn');
-  if(camOff){
-    btn.innerHTML = '<svg class="cam-icon" viewBox="0 0 24 24" style="opacity:0.4"><path d="M17 10.5V7a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h12a1 1 0 001-1v-3.5l4 4v-11l-4 4z"/></svg>';
-  } else {
-    btn.innerHTML = '<svg class="cam-icon" viewBox="0 0 24 24"><path d="M17 10.5V7a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h12a1 1 0 001-1v-3.5l4 4v-11l-4 4z"/></svg>';
-  }
-  toast(camOff ? 'Camera off' : 'Camera on');
-}
-
-function endCall(){
-  if(!confirm('End the call?')) return;
-  clearInterval(timerInt); clearInterval(faceInt); clearInterval(autoInt);
-  recognition?.stop(); synth.cancel();
-  stream?.getTracks().forEach(t => t.stop());
-  setupDone = false; hist = []; callSecs = 0;
-  document.getElementById('call').style.display  = 'none';
-  document.getElementById('setup').style.display = 'flex';
-}
-
-function startTimer(){
-  timerInt = setInterval(()=>{
-    callSecs++;
-    const m = String(Math.floor(callSecs/60)).padStart(2,'0');
-    const s = String(callSecs%60).padStart(2,'0');
-    document.getElementById('timer').textContent = `${m}:${s}`;
-  }, 1000);
-}
-
-function setStatus(txt, color){
-  document.getElementById('stext').textContent = txt;
-  document.getElementById('sdot').className = 'sdot ' + color;
-}
-
-function showListen(on){
-  document.getElementById('lbar').classList.toggle('show', on && !muted);
-}
-
-function toast(msg){
-  const t = document.getElementById('toast');
-  t.textContent = msg; t.classList.add('show');
-  setTimeout(()=> t.classList.remove('show'), 2500);
-}
-
-// preload voices
-synth.onvoiceschanged = ()=> synth.getVoices();
 </script>
+
 </body>
 </html>
