@@ -97,7 +97,9 @@ def chat():
         return jsonify({'text': text, 'emotion': emotion, 'mem': mem_update})
 
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        import traceback
+        print("CHAT ERROR:", traceback.format_exc())
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/health')
 def health():
