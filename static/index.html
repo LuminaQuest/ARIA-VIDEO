@@ -3,733 +3,785 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ARIA — Video Call</title>
+<title>ARIA</title>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
-
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-
 :root{
-  --bg:#0c0c0e;
-  --surface:rgba(255,255,255,0.06);
-  --border:rgba(255,255,255,0.1);
-  --text:#f0eee8;
-  --muted:rgba(240,238,232,0.45);
-  --warm:#e8956d;
-  --warm-dim:rgba(232,149,109,0.15);
-  --green:#4ade80;
-  --red:#f87171;
-  --blue:#60a5fa;
+  --bg:#07090f;
+  --border:rgba(255,255,255,0.07);
+  --text:#dde1ec;
+  --muted:rgba(221,225,236,0.38);
+  --blue:#5b8dee;
+  --blue-glow:rgba(91,141,238,0.18);
+  --green:#36c97a;
+  --red:#e85555;
+  --purple:#9d7fe8;
+}
+html,body{height:100%;font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);overflow:hidden}
+
+/* ambient background */
+body::before{
+  content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(ellipse 55% 45% at 15% 15%, rgba(91,141,238,0.06) 0%,transparent 65%),
+    radial-gradient(ellipse 45% 55% at 85% 85%, rgba(157,127,232,0.05) 0%,transparent 65%),
+    radial-gradient(ellipse 35% 35% at 50% 100%, rgba(54,201,122,0.03) 0%,transparent 60%);
 }
 
-html,body{height:100%;font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--text);overflow:hidden;user-select:none}
+/* subtle grid */
+body::after{
+  content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.012) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,0.012) 1px,transparent 1px);
+  background-size:52px 52px;
+}
 
-/* ── SETUP ── */
+/* ── SETUP ─────────────────────────────────────────── */
 #setup{
-  position:fixed;inset:0;z-index:200;
+  position:fixed;inset:0;z-index:300;
   display:flex;align-items:center;justify-content:center;
   background:var(--bg);
 }
 
-.setup-card{
-  width:100%;max-width:400px;padding:44px 36px;
-  background:rgba(255,255,255,0.04);
-  border:1px solid var(--border);border-radius:24px;
-  text-align:center;
+.card{
+  width:100%;max-width:390px;
+  background:rgba(255,255,255,0.025);
+  border:1px solid var(--border);
+  border-radius:22px;padding:40px 32px;
+  text-align:center;position:relative;z-index:1;
 }
 
-.setup-logo{
-  font-size:2.6rem;font-weight:700;letter-spacing:0.05em;
-  color:var(--warm);margin-bottom:6px;
-  text-shadow:0 0 40px rgba(232,149,109,0.3);
+.logo{
+  font-size:1.6rem;font-weight:600;
+  letter-spacing:0.22em;color:var(--text);
+  margin-bottom:6px;
 }
+.logo b{color:var(--blue);font-weight:600}
 
-.setup-sub{font-size:0.85rem;color:var(--muted);margin-bottom:32px;line-height:1.6;font-weight:300}
-
-.field{margin-bottom:14px;text-align:left}
-.field label{display:block;font-size:0.68rem;font-weight:600;color:var(--muted);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:6px}
-.field input{
-  width:100%;padding:12px 15px;
-  background:rgba(255,255,255,0.05);
-  border:1px solid var(--border);border-radius:12px;
-  color:var(--text);font-family:'Plus Jakarta Sans',sans-serif;
-  font-size:0.88rem;outline:none;transition:border-color 0.3s;
-}
-.field input:focus{border-color:var(--warm)}
-.field input::placeholder{color:var(--muted)}
-
-.setup-note{font-size:0.7rem;color:var(--muted);margin:4px 0 20px;text-align:left}
-.setup-note a{color:var(--warm);text-decoration:none}
-
-.start-btn{
-  width:100%;padding:14px;border:none;border-radius:13px;
-  background:linear-gradient(135deg,#c9714a,#e8956d);
-  color:#0c0c0e;font-family:'Plus Jakarta Sans',sans-serif;
-  font-size:0.95rem;font-weight:700;cursor:pointer;
-  transition:all 0.3s;
-}
-.start-btn:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(232,149,109,0.3)}
-
-/* ── CALL SCREEN ── */
-#call{
-  position:fixed;inset:0;z-index:100;
-  display:none;
-  background:#000;
-}
-
-/* ARIA's "video" - full background */
-.aria-bg{
-  position:absolute;inset:0;
-  background:linear-gradient(135deg,#1a0a2e,#0d1a2e,#1a1a0a);
-  display:flex;align-items:center;justify-content:center;
-  overflow:hidden;
-}
-
-.aria-pulse{
-  width:280px;height:280px;border-radius:50%;
-  background:radial-gradient(circle,rgba(232,149,109,0.15) 0%,transparent 70%);
-  position:relative;display:flex;align-items:center;justify-content:center;
-}
-
-.aria-pulse::before{
-  content:'';position:absolute;inset:-20px;border-radius:50%;
-  border:1px solid rgba(232,149,109,0.15);
-  animation:ring1 3s ease-in-out infinite;
-}
-.aria-pulse::after{
-  content:'';position:absolute;inset:-50px;border-radius:50%;
-  border:1px solid rgba(232,149,109,0.08);
-  animation:ring1 3s ease-in-out infinite 0.5s;
-}
-
-@keyframes ring1{0%,100%{transform:scale(1);opacity:0.5}50%{transform:scale(1.08);opacity:1}}
-
-.aria-avatar-big{
-  width:120px;height:120px;border-radius:50%;
-  background:linear-gradient(135deg,#c9714a,#e8956d,#a8d5ba);
-  display:flex;align-items:center;justify-content:center;
-  font-size:3rem;position:relative;z-index:1;
-  box-shadow:0 0 60px rgba(232,149,109,0.3);
-}
-
-.aria-speaking-ring{
-  position:absolute;inset:-6px;border-radius:50%;
-  border:2px solid var(--warm);
-  opacity:0;transition:opacity 0.3s;
-  animation:speak-ring 0.8s ease-in-out infinite;
-}
-
-.speaking .aria-speaking-ring{opacity:1}
-
-@keyframes speak-ring{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
-
-/* ARIA name + status */
-.aria-info{
-  position:absolute;top:28px;left:50%;transform:translateX(-50%);
-  text-align:center;
-}
-
-.aria-call-name{
-  font-size:1.1rem;font-weight:600;color:var(--text);
-  letter-spacing:0.05em;
-}
-
-.aria-call-status{
-  font-size:0.72rem;color:var(--muted);margin-top:3px;
-  display:flex;align-items:center;justify-content:center;gap:6px;
-}
-
-.status-green{color:var(--green)}
-
-/* Timer */
-.call-timer{
-  position:absolute;top:28px;right:28px;
+.tagline{
   font-size:0.8rem;color:var(--muted);
-  font-variant-numeric:tabular-nums;
-  letter-spacing:0.05em;
+  margin-bottom:30px;line-height:1.6;font-weight:300;
 }
 
-/* User camera - pip */
-.user-pip{
-  position:absolute;bottom:140px;right:20px;
-  width:120px;height:160px;
-  border-radius:16px;overflow:hidden;
-  border:2px solid rgba(255,255,255,0.15);
-  box-shadow:0 8px 32px rgba(0,0,0,0.5);
-  background:#111;
-  transition:all 0.3s;
+.f{margin-bottom:13px;text-align:left}
+.f label{
+  display:block;font-size:0.62rem;font-weight:600;
+  color:var(--muted);letter-spacing:0.12em;
+  text-transform:uppercase;margin-bottom:5px;
+}
+.f input{
+  width:100%;padding:11px 14px;
+  background:rgba(255,255,255,0.035);
+  border:1px solid var(--border);border-radius:10px;
+  color:var(--text);font-family:'Inter',sans-serif;
+  font-size:0.875rem;outline:none;transition:border-color 0.2s;
+}
+.f input:focus{border-color:rgba(91,141,238,0.5)}
+.f input::placeholder{color:var(--muted)}
+
+.note{
+  font-size:0.67rem;color:var(--muted);
+  margin:4px 0 22px;text-align:left;line-height:1.55;
 }
 
-.user-pip:hover{transform:scale(1.03)}
-
-#userVideo{
-  width:100%;height:100%;object-fit:cover;
-  transform:scaleX(-1);display:block;
+.go-btn{
+  width:100%;padding:13px;border:none;
+  border-radius:11px;background:var(--blue);
+  color:#fff;font-family:'Inter',sans-serif;
+  font-size:0.88rem;font-weight:600;cursor:pointer;
+  transition:all 0.2s;letter-spacing:0.02em;
+}
+.go-btn:hover{
+  background:#4a7de0;
+  transform:translateY(-1px);
+  box-shadow:0 6px 22px rgba(91,141,238,0.28);
 }
 
-.pip-label{
-  position:absolute;bottom:6px;left:50%;transform:translateX(-50%);
-  font-size:0.62rem;color:rgba(255,255,255,0.6);
-  background:rgba(0,0,0,0.5);padding:2px 8px;border-radius:100px;
-  white-space:nowrap;
-}
+/* ── CALL ──────────────────────────────────────────── */
+#call{position:fixed;inset:0;z-index:200;display:none}
 
-/* ARIA speech bubble */
-.speech-area{
-  position:absolute;
-  left:50%;transform:translateX(-50%);
-  bottom:170px;width:90%;max-width:500px;
-  text-align:center;
-}
-
-.speech-bubble{
-  display:inline-block;
-  background:rgba(255,255,255,0.08);
-  backdrop-filter:blur(12px);
-  border:1px solid rgba(255,255,255,0.12);
-  border-radius:20px;padding:16px 22px;
-  font-size:0.95rem;line-height:1.65;font-weight:300;
-  color:var(--text);min-height:56px;
-  transition:all 0.4s;max-width:100%;
-}
-
-.speech-bubble.empty{opacity:0}
-
-/* waveform */
-.waveform{
+/* deep background */
+.scene{
+  position:absolute;inset:0;
+  background:linear-gradient(155deg,#080c1f 0%,#07090f 45%,#0c080f 100%);
   display:flex;align-items:center;justify-content:center;
-  gap:3px;height:20px;margin-top:8px;
-  opacity:0;transition:opacity 0.3s;
 }
-.waveform.active{opacity:1}
-.wbar{width:3px;border-radius:2px;background:var(--warm);animation:wv 0.8s ease-in-out infinite}
-.wbar:nth-child(1){animation-delay:0s}
-.wbar:nth-child(2){animation-delay:0.1s}
-.wbar:nth-child(3){animation-delay:0.2s}
-.wbar:nth-child(4){animation-delay:0.3s}
-.wbar:nth-child(5){animation-delay:0.2s}
-.wbar:nth-child(6){animation-delay:0.1s}
-.wbar:nth-child(7){animation-delay:0s}
-@keyframes wv{0%,100%{height:4px}50%{height:18px}}
 
-/* Controls */
+/* ARIA orb */
+.orb-wrap{
+  position:relative;
+  display:flex;align-items:center;justify-content:center;
+}
+
+.orb{
+  width:168px;height:168px;border-radius:50%;
+  background:radial-gradient(circle at 38% 32%,#141e38,#0a0d1a);
+  border:1px solid rgba(91,141,238,0.18);
+  position:relative;z-index:2;
+  transition:all 0.5s ease;
+  box-shadow:
+    0 0 50px rgba(91,141,238,0.06),
+    inset 0 0 40px rgba(91,141,238,0.04);
+}
+
+/* inner glow dot */
+.orb::after{
+  content:'';position:absolute;
+  width:40px;height:40px;border-radius:50%;
+  background:radial-gradient(circle,rgba(91,141,238,0.4),transparent);
+  top:38px;left:44px;
+  transition:all 0.5s;
+}
+
+.orb.speaking{
+  border-color:rgba(91,141,238,0.45);
+  box-shadow:
+    0 0 80px rgba(91,141,238,0.18),
+    0 0 120px rgba(91,141,238,0.08),
+    inset 0 0 50px rgba(91,141,238,0.08);
+}
+
+.orb.speaking::after{
+  background:radial-gradient(circle,rgba(91,141,238,0.7),transparent);
+  width:56px;height:56px;top:30px;left:38px;
+}
+
+.orb.happy{border-color:rgba(54,201,122,0.35);box-shadow:0 0 70px rgba(54,201,122,0.12),inset 0 0 40px rgba(54,201,122,0.05)}
+.orb.happy::after{background:radial-gradient(circle,rgba(54,201,122,0.5),transparent)}
+.orb.thinking{border-color:rgba(157,127,232,0.35);box-shadow:0 0 70px rgba(157,127,232,0.12),inset 0 0 40px rgba(157,127,232,0.05)}
+.orb.thinking::after{background:radial-gradient(circle,rgba(157,127,232,0.5),transparent)}
+.orb.excited{border-color:rgba(245,180,60,0.35);box-shadow:0 0 70px rgba(245,180,60,0.12),inset 0 0 40px rgba(245,180,60,0.05)}
+.orb.excited::after{background:radial-gradient(circle,rgba(245,180,60,0.5),transparent)}
+.orb.sad{border-color:rgba(120,160,220,0.3);box-shadow:0 0 60px rgba(120,160,220,0.1),inset 0 0 40px rgba(120,160,220,0.05)}
+.orb.sarcastic{border-color:rgba(220,120,120,0.3);box-shadow:0 0 60px rgba(220,120,120,0.1),inset 0 0 40px rgba(220,120,120,0.05)}
+
+/* orbit rings */
+.ring{
+  position:absolute;border-radius:50%;
+  border:1px solid rgba(91,141,238,0.06);
+  animation:breathe 4s ease-in-out infinite;
+  pointer-events:none;
+}
+.r1{width:220px;height:220px;animation-delay:0s}
+.r2{width:280px;height:280px;animation-delay:0.9s;border-color:rgba(91,141,238,0.04)}
+.r3{width:350px;height:350px;animation-delay:1.8s;border-color:rgba(91,141,238,0.025)}
+
+@keyframes breathe{
+  0%,100%{opacity:0.5;transform:scale(1)}
+  50%{opacity:1;transform:scale(1.025)}
+}
+
+.orb.speaking ~ .r1,.orb.speaking ~ .r2,.orb.speaking ~ .r3{
+  animation:breathe-fast 0.7s ease-in-out infinite;
+}
+@keyframes breathe-fast{
+  0%,100%{opacity:0.4;transform:scale(1)}
+  50%{opacity:1;transform:scale(1.05)}
+}
+
+/* waveform under orb */
+.wave{
+  display:flex;align-items:center;gap:3px;
+  height:22px;margin-top:22px;
+  opacity:0;transition:opacity 0.4s;
+  position:relative;z-index:3;
+}
+.wave.on{opacity:1}
+.wb{width:2.5px;border-radius:2px;background:var(--blue);animation:wv 0.75s ease-in-out infinite}
+.wb:nth-child(1){animation-delay:0s}
+.wb:nth-child(2){animation-delay:0.1s}
+.wb:nth-child(3){animation-delay:0.2s}
+.wb:nth-child(4){animation-delay:0.3s}
+.wb:nth-child(5){animation-delay:0.4s}
+.wb:nth-child(6){animation-delay:0.3s}
+.wb:nth-child(7){animation-delay:0.2s}
+.wb:nth-child(8){animation-delay:0.1s}
+.wb:nth-child(9){animation-delay:0s}
+@keyframes wv{0%,100%{height:3px;opacity:0.5}50%{height:18px;opacity:1}}
+
+/* top bar */
+.topbar{
+  position:absolute;top:0;left:0;right:0;
+  padding:18px 24px;
+  display:flex;align-items:flex-start;justify-content:space-between;
+  z-index:10;
+}
+.tl-name{font-size:0.82rem;font-weight:600;letter-spacing:0.06em;color:var(--text)}
+.tl-status{
+  font-size:0.68rem;color:var(--muted);
+  display:flex;align-items:center;gap:5px;margin-top:3px;
+}
+.sdot{width:5px;height:5px;border-radius:50%}
+.sdot.g{background:var(--green);box-shadow:0 0 5px var(--green)}
+.sdot.b{background:var(--blue);animation:bpulse 1s infinite}
+@keyframes bpulse{0%,100%{opacity:1}50%{opacity:0.25}}
+.timer{font-size:0.75rem;color:var(--muted);font-variant-numeric:tabular-nums;letter-spacing:0.04em}
+
+/* user pip */
+.pip{
+  position:absolute;bottom:128px;right:20px;
+  width:108px;height:144px;border-radius:14px;
+  overflow:hidden;
+  border:1px solid rgba(255,255,255,0.09);
+  background:#0c0e14;
+  box-shadow:0 6px 28px rgba(0,0,0,0.55);
+  z-index:10;
+}
+#uv{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);display:block}
+#sc{display:none}
+.pip-label{
+  position:absolute;bottom:5px;left:50%;
+  transform:translateX(-50%);
+  font-size:0.58rem;color:rgba(255,255,255,0.5);
+  background:rgba(0,0,0,0.55);
+  padding:2px 8px;border-radius:100px;white-space:nowrap;
+}
+
+/* what user is saying */
+.usay{
+  position:absolute;
+  bottom:228px;left:50%;transform:translateX(-50%);
+  font-size:0.75rem;color:var(--muted);
+  background:rgba(91,141,238,0.08);
+  border:1px solid rgba(91,141,238,0.14);
+  border-radius:100px;padding:5px 14px;
+  opacity:0;transition:opacity 0.25s;
+  white-space:nowrap;max-width:78%;
+  overflow:hidden;text-overflow:ellipsis;
+  z-index:10;
+}
+.usay.show{opacity:1}
+
+/* aria speech bubble */
+.bwrap{
+  position:absolute;
+  bottom:152px;left:50%;transform:translateX(-50%);
+  width:86%;max-width:500px;text-align:center;
+  z-index:10;
+}
+.bub{
+  display:inline-block;
+  background:rgba(12,15,26,0.88);
+  backdrop-filter:blur(14px);
+  -webkit-backdrop-filter:blur(14px);
+  border:1px solid rgba(255,255,255,0.07);
+  border-radius:16px;padding:15px 20px;
+  font-size:0.92rem;line-height:1.72;
+  font-weight:300;color:var(--text);
+  text-align:left;max-width:100%;
+  min-height:50px;transition:opacity 0.3s;
+}
+.bub.gone{opacity:0}
+
+/* listening bar */
+.lbar{
+  position:absolute;bottom:100px;left:50%;
+  transform:translateX(-50%);
+  font-size:0.68rem;color:var(--muted);
+  display:flex;align-items:center;gap:6px;
+  opacity:0;transition:opacity 0.3s;z-index:10;
+}
+.lbar.show{opacity:1}
+.ldot{width:5px;height:5px;border-radius:50%;background:var(--green);animation:ldp 1.1s infinite}
+@keyframes ldp{0%,100%{opacity:1}50%{opacity:0.15}}
+
+/* controls */
 .controls{
   position:absolute;bottom:0;left:0;right:0;
-  padding:24px;
-  display:flex;align-items:center;justify-content:center;
-  gap:16px;
-  background:linear-gradient(transparent,rgba(0,0,0,0.6));
+  padding:18px 20px 24px;
+  display:flex;align-items:center;justify-content:center;gap:14px;
+  background:linear-gradient(transparent,rgba(0,0,0,0.65));
+  z-index:10;
 }
-
-.ctrl-btn{
-  width:56px;height:56px;border-radius:50%;border:none;
+.cb{
+  width:50px;height:50px;border-radius:50%;border:none;
   display:flex;align-items:center;justify-content:center;
-  font-size:1.3rem;cursor:pointer;transition:all 0.25s;
+  cursor:pointer;transition:all 0.2s;font-size:1rem;
   backdrop-filter:blur(8px);
 }
+.cb:hover{transform:scale(1.09)}
+.cb:active{transform:scale(0.94)}
 
-.ctrl-btn:hover{transform:scale(1.08)}
-.ctrl-btn:active{transform:scale(0.96)}
-
-.btn-mic{background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.15);color:var(--text)}
-.btn-mic.muted{background:rgba(248,113,113,0.2);border-color:rgba(248,113,113,0.4);color:var(--red)}
-.btn-mic.listening{background:rgba(74,222,128,0.15);border-color:rgba(74,222,128,0.4);color:var(--green);animation:listen-pulse 1.5s infinite}
-
-@keyframes listen-pulse{0%,100%{box-shadow:0 0 0 0 rgba(74,222,128,0.3)}50%{box-shadow:0 0 0 10px rgba(74,222,128,0)}}
-
-.btn-end{background:var(--red);color:white;width:64px;height:64px;font-size:1.5rem}
-.btn-end:hover{background:#ef4444}
-
-.btn-cam{background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.15);color:var(--text)}
-
-/* Listening indicator */
-.listen-indicator{
-  position:absolute;bottom:105px;left:50%;transform:translateX(-50%);
-  font-size:0.72rem;color:var(--muted);
-  display:flex;align-items:center;gap:6px;
-  opacity:0;transition:opacity 0.3s;
+.cb-mic{
+  background:rgba(255,255,255,0.08);
+  border:1px solid rgba(255,255,255,0.1);
+  color:var(--text);
 }
-.listen-indicator.show{opacity:1}
-.listen-dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:blink 1s infinite}
-@keyframes blink{0%,100%{opacity:1}50%{opacity:0.2}}
-
-/* Memory sidebar */
-.mem-sidebar{
-  position:absolute;top:80px;left:20px;
-  width:180px;
-  background:rgba(0,0,0,0.4);
-  backdrop-filter:blur(12px);
-  border:1px solid var(--border);
-  border-radius:16px;padding:14px;
-  font-size:0.72rem;
-  opacity:0;transition:opacity 0.3s;
+.cb-mic.on{
+  background:rgba(54,201,122,0.12);
+  border-color:rgba(54,201,122,0.28);
+  color:var(--green);
+  animation:mring 1.6s infinite;
 }
-.mem-sidebar:hover{opacity:1}
-.mem-sidebar-label{color:var(--muted);font-size:0.6rem;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:8px}
-.mem-row{color:rgba(255,255,255,0.65);margin-bottom:5px;line-height:1.4}
-.mem-row span{color:var(--warm)}
+@keyframes mring{
+  0%,100%{box-shadow:0 0 0 0 rgba(54,201,122,0.25)}
+  50%{box-shadow:0 0 0 8px rgba(54,201,122,0)}
+}
+.cb-mic.muted{
+  background:rgba(232,85,85,0.12);
+  border-color:rgba(232,85,85,0.28);
+  color:var(--red);
+}
+.cb-end{
+  background:var(--red);color:#fff;
+  width:56px;height:56px;font-size:1.2rem;
+}
+.cb-end:hover{background:#d44}
+.cb-cam{
+  background:rgba(255,255,255,0.06);
+  border:1px solid rgba(255,255,255,0.08);
+  color:var(--muted);font-size:0.9rem;
+}
 
-/* Notification toast */
+/* toast */
 .toast{
-  position:absolute;top:80px;left:50%;transform:translateX(-50%);
-  background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);
+  position:absolute;top:68px;left:50%;transform:translateX(-50%);
+  background:rgba(8,10,18,0.92);backdrop-filter:blur(10px);
   border:1px solid var(--border);border-radius:100px;
-  padding:8px 18px;font-size:0.78rem;color:var(--muted);
-  opacity:0;transition:opacity 0.3s;pointer-events:none;
-  white-space:nowrap;
+  padding:6px 15px;font-size:0.72rem;color:var(--muted);
+  opacity:0;transition:opacity 0.25s;pointer-events:none;
+  white-space:nowrap;z-index:20;
 }
 .toast.show{opacity:1}
+
+/* mic icon svg */
+.mic-icon{width:18px;height:18px;fill:currentColor}
+.cam-icon{width:16px;height:16px;fill:currentColor}
+.end-icon{width:20px;height:20px;fill:currentColor}
 </style>
 </head>
 <body>
 
-<!-- SETUP -->
+<!-- ── SETUP ── -->
 <div id="setup">
-  <div class="setup-card">
-    <div class="setup-logo">ARIA</div>
-    <div class="setup-sub">Video call with an AI who actually gets you.<br>Real reactions. Real conversation.</div>
+  <div class="card">
+    <div class="logo">A<b>R</b>IA</div>
+    <div class="tagline">Not an assistant. A real conversation.</div>
 
-    <div class="field">
+    <div class="f">
       <label>Your name</label>
       <input type="text" id="nameIn" placeholder="What should ARIA call you?">
     </div>
-
-    <div class="field">
-      <label>Something about you (optional)</label>
-      <input type="text" id="bioIn" placeholder="e.g. I'm a student, I love building things">
+    <div class="f">
+      <label>A bit about you</label>
+      <input type="text" id="bioIn" placeholder="e.g. building something, stressed about exams...">
     </div>
-
-    <div class="setup-note">Uses Claude AI. Set your API key as environment variable ANTHROPIC_API_KEY on Railway.</div>
-
-    <button class="start-btn" onclick="startCall()">Start Call with ARIA →</button>
+    <div class="note">Runs on Claude AI. Set ANTHROPIC_API_KEY as environment variable on Railway.</div>
+    <button class="go-btn" onclick="boot()">Start call</button>
   </div>
 </div>
 
-<!-- CALL -->
+<!-- ── CALL ── -->
 <div id="call">
-  <div class="aria-bg">
-    <div class="aria-pulse" id="ariaPulse">
-      <div class="aria-avatar-big" id="ariaAvatar">
-        🌸
-        <div class="aria-speaking-ring"></div>
+  <div class="scene">
+    <div style="display:flex;flex-direction:column;align-items:center;position:relative;z-index:1">
+      <div class="orb-wrap">
+        <div class="orb" id="orb"></div>
+        <div class="ring r1"></div>
+        <div class="ring r2"></div>
+        <div class="ring r3"></div>
+      </div>
+      <div class="wave" id="wave">
+        <div class="wb"></div><div class="wb"></div><div class="wb"></div>
+        <div class="wb"></div><div class="wb"></div><div class="wb"></div>
+        <div class="wb"></div><div class="wb"></div><div class="wb"></div>
       </div>
     </div>
   </div>
 
-  <div class="aria-info">
-    <div class="aria-call-name">ARIA</div>
-    <div class="aria-call-status">
-      <span class="status-green" id="callStatus">● Connected</span>
+  <div class="topbar">
+    <div>
+      <div class="tl-name">ARIA</div>
+      <div class="tl-status">
+        <div class="sdot g" id="sdot"></div>
+        <span id="stext">connected</span>
+      </div>
     </div>
+    <div class="timer" id="timer">00:00</div>
   </div>
 
-  <div class="call-timer" id="timer">00:00</div>
-
-  <div class="user-pip">
-    <video id="userVideo" autoplay playsinline muted></video>
-    <canvas id="snapCanvas" style="display:none"></canvas>
-    <div class="pip-label" id="pipLabel">You</div>
+  <div class="pip">
+    <video id="uv" autoplay playsinline muted></video>
+    <canvas id="sc"></canvas>
+    <div class="pip-label" id="pipLabel">you</div>
   </div>
 
-  <div class="speech-area">
-    <div class="speech-bubble empty" id="speechBubble"></div>
-    <div class="waveform" id="waveform">
-      <div class="wbar"></div><div class="wbar"></div><div class="wbar"></div>
-      <div class="wbar"></div><div class="wbar"></div><div class="wbar"></div>
-      <div class="wbar"></div>
-    </div>
+  <div class="usay" id="usay"></div>
+
+  <div class="bwrap">
+    <div class="bub gone" id="bub"></div>
   </div>
 
-  <div class="listen-indicator" id="listenIndicator">
-    <div class="listen-dot"></div>
-    <span id="listenText">listening...</span>
+  <div class="lbar" id="lbar">
+    <div class="ldot"></div>
+    <span>listening</span>
   </div>
 
-  <div class="mem-sidebar" id="memSidebar">
-    <div class="mem-sidebar-label">ARIA knows</div>
-    <div id="memRows"><div class="mem-row" style="color:var(--muted);font-style:italic">Hover to see</div></div>
+  <div class="controls">
+    <button class="cb cb-cam" id="camBtn" onclick="toggleCam()" title="Camera">
+      <svg class="cam-icon" viewBox="0 0 24 24"><path d="M17 10.5V7a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h12a1 1 0 001-1v-3.5l4 4v-11l-4 4z"/></svg>
+    </button>
+    <button class="cb cb-mic on" id="micBtn" onclick="toggleMic()" title="Mic">
+      <svg class="mic-icon" viewBox="0 0 24 24"><path d="M12 1a4 4 0 00-4 4v7a4 4 0 008 0V5a4 4 0 00-4-4zm-2 18.93V21h4v-1.07A8.001 8.001 0 0020 12h-2a6 6 0 01-12 0H4a8.001 8.001 0 006 7.93z"/></svg>
+    </button>
+    <button class="cb cb-end" onclick="endCall()" title="End call">
+      <svg class="end-icon" viewBox="0 0 24 24"><path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1-9.4 0-17-7.6-17-17 0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1L6.6 10.8z"/></svg>
+    </button>
   </div>
 
   <div class="toast" id="toast"></div>
-
-  <div class="controls">
-    <button class="ctrl-btn btn-cam" id="camBtn" onclick="toggleCam()" title="Camera">📷</button>
-    <button class="ctrl-btn btn-mic listening" id="micBtn" onclick="toggleMic()" title="Mic">🎙</button>
-    <button class="ctrl-btn btn-end" onclick="endCall()" title="End call">📵</button>
-  </div>
 </div>
 
 <script>
-// ── State ──────────────────────────────────────────────
+// ── state ─────────────────────────────────────────────
 let NAME='', BIO='';
-let mem={};
-let hist=[];
-let stream=null;
-let busy=false;
-let muted=false;
-let camOff=false;
-let callSeconds=0;
-let timerInterval=null;
-let faceInterval=null;
-let autoTalkInterval=null;
-let recognition=null;
-let listening=false;
-let inFrame=true;
-let frameCheckInterval=null;
-let hasSpokenAboutLeaving=false;
-let lastSpoke=Date.now();
-let speechSynth=window.speechSynthesis;
-let currentUtterance=null;
-let setupDone=false;
+let mem={}, hist=[], busy=false;
+let muted=false, camOff=false;
+let stream=null, recognition=null;
+let callSecs=0, timerInt=null, faceInt=null, autoInt=null;
+let lastTalked=Date.now(), inFrame=true, toldLeave=false;
+let synth=window.speechSynthesis, curUtt=null, setupDone=false;
+let interim='', silTimer=null;
 
-// ── Setup ──────────────────────────────────────────────
-async function startCall(){
-  NAME=document.getElementById('nameIn').value.trim()||'friend';
-  BIO=document.getElementById('bioIn').value.trim();
+// orb emotion → css class
+const EMOTIONS={
+  neutral:'', happy:'happy', laughing:'happy',
+  thinking:'thinking', surprised:'thinking',
+  sad:'sad', sarcastic:'sarcastic',
+  excited:'excited', listening:''
+};
+
+// ── boot ─────────────────────────────────────────────
+async function boot(){
+  NAME = document.getElementById('nameIn').value.trim() || 'friend';
+  BIO  = document.getElementById('bioIn').value.trim();
   loadMem();
+  document.getElementById('pipLabel').textContent = NAME.toLowerCase();
 
   try{
-    stream=await navigator.mediaDevices.getUserMedia({video:true,audio:false});
-    document.getElementById('userVideo').srcObject=stream;
-    document.getElementById('pipLabel').textContent=NAME;
-  }catch(e){
-    showToast('Camera access needed for ARIA to see you');
-  }
+    stream = await navigator.mediaDevices.getUserMedia({video:true, audio:false});
+    document.getElementById('uv').srcObject = stream;
+  } catch(e){ toast('Camera blocked — ARIA can still hear you'); }
 
-  document.getElementById('setup').style.display='none';
-  document.getElementById('call').style.display='block';
+  document.getElementById('setup').style.display = 'none';
+  document.getElementById('call').style.display  = 'block';
+  setupDone = true;
 
   startTimer();
-  startListening();
-  startFaceReading();
-  startAutoTalk();
-  setupDone=true;
+  startMic();
+  startFaceLoop();
+  startAutoKeep();
 
-  // ARIA speaks first
+  // ARIA speaks first after 1s
   setTimeout(()=>{
-    const greeting = BIO
-      ? `Hey ${NAME}! Oh good, you're here. ${BIO ? "So you're into "+BIO.toLowerCase()+"? We've got a lot to talk about." : "What's on your mind?"}`
-      : `Hey ${NAME}! Finally, a real conversation. How are you actually doing?`;
-    ariaSpeak(greeting);
-  }, 1200);
+    const g = BIO
+      ? `Hey ${NAME}. ${BIO} — okay I already want to know more about that. But first, how are you doing? Actually doing.`
+      : `Hey ${NAME}. Finally, a real conversation. How are you actually doing right now?`;
+    speak(g, 'happy');
+  }, 1000);
 }
 
-// ── Timer ──────────────────────────────────────────────
-function startTimer(){
-  timerInterval=setInterval(()=>{
-    callSeconds++;
-    const m=String(Math.floor(callSeconds/60)).padStart(2,'0');
-    const s=String(callSeconds%60).padStart(2,'0');
-    document.getElementById('timer').textContent=`${m}:${s}`;
-  },1000);
-}
-
-// ── Memory ─────────────────────────────────────────────
+// ── memory ────────────────────────────────────────────
 function loadMem(){
-  try{mem=JSON.parse(localStorage.getItem('aria_video_mem')||'{}');}
-  catch{mem={};}
-  if(NAME)mem.name=NAME;
-  if(BIO)mem.bio=BIO;
+  try{ mem = JSON.parse(localStorage.getItem('aria_mem') || '{}'); }
+  catch{ mem = {}; }
+  if(NAME) mem.name = NAME;
+  if(BIO)  mem.about = BIO;
 }
 
-function saveMem(update){
-  if(!update)return;
-  Object.entries(update).forEach(([k,v])=>{if(v&&v!=='unknown')mem[k]=v;});
-  localStorage.setItem('aria_video_mem',JSON.stringify(mem));
-  renderMemSidebar();
+function saveMem(u){
+  if(!u || !Object.keys(u).length) return;
+  Object.entries(u).forEach(([k,v])=>{
+    if(v && !['','unknown','n/a','none'].includes((v+'').toLowerCase().trim()))
+      mem[k] = v;
+  });
+  localStorage.setItem('aria_mem', JSON.stringify(mem));
 }
 
 function memStr(){
-  const parts=[];
-  if(mem.name)parts.push(`Name: ${mem.name}`);
-  if(mem.bio)parts.push(`About: ${mem.bio}`);
-  if(mem.mood)parts.push(`Mood: ${mem.mood}`);
-  if(mem.goal)parts.push(`Goal: ${mem.goal}`);
-  if(mem.topic)parts.push(`Talking about: ${mem.topic}`);
-  return parts.join('\n')||'New conversation.';
+  const p = [];
+  if(mem.name)  p.push(`Name: ${mem.name}`);
+  if(mem.about) p.push(`About: ${mem.about}`);
+  if(mem.mood)  p.push(`Current mood: ${mem.mood}`);
+  if(mem.topic) p.push(`Talking about: ${mem.topic}`);
+  if(mem.goal)  p.push(`Goal: ${mem.goal}`);
+  return p.join('\n') || 'First conversation.';
 }
 
-function renderMemSidebar(){
-  const rows=document.getElementById('memRows');
-  const items=[];
-  if(mem.mood)items.push({l:'mood',v:mem.mood});
-  if(mem.goal)items.push({l:'goal',v:mem.goal});
-  if(mem.topic)items.push({l:'topic',v:mem.topic});
-  if(!items.length)return;
-  rows.innerHTML=items.map(i=>`<div class="mem-row"><span>${i.l}:</span> ${i.v}</div>`).join('');
+// ── capture ───────────────────────────────────────────
+function snap(){
+  const v = document.getElementById('uv');
+  const c = document.getElementById('sc');
+  if(!v.videoWidth) return null;
+  c.width = v.videoWidth; c.height = v.videoHeight;
+  const ctx = c.getContext('2d');
+  ctx.translate(c.width, 0); ctx.scale(-1, 1);
+  ctx.drawImage(v, 0, 0);
+  return c.toDataURL('image/jpeg', 0.65).split(',')[1];
 }
 
-// ── Capture frame ──────────────────────────────────────
-function captureFrame(){
-  const video=document.getElementById('userVideo');
-  const canvas=document.getElementById('snapCanvas');
-  if(!video.videoWidth)return null;
-  canvas.width=video.videoWidth;canvas.height=video.videoHeight;
-  const ctx=canvas.getContext('2d');
-  ctx.translate(canvas.width,0);ctx.scale(-1,1);
-  ctx.drawImage(video,0,0);
-  return canvas.toDataURL('image/jpeg',0.7).split(',')[1];
+function framePresent(){
+  const v = document.getElementById('uv');
+  const c = document.getElementById('sc');
+  if(!v.videoWidth) return true;
+  c.width = 32; c.height = 32;
+  const ctx = c.getContext('2d');
+  ctx.drawImage(v, 0, 0, 32, 32);
+  const d = ctx.getImageData(0,0,32,32).data;
+  let b = 0;
+  for(let i=0; i<d.length; i+=4) b += (d[i]+d[i+1]+d[i+2])/3;
+  return (b / (d.length/4)) > 18;
 }
 
-function checkInFrame(){
-  const video=document.getElementById('userVideo');
-  const canvas=document.getElementById('snapCanvas');
-  if(!video.videoWidth)return true;
-  canvas.width=32;canvas.height=32;
-  const ctx=canvas.getContext('2d');
-  ctx.drawImage(video,0,0,32,32);
-  const data=ctx.getImageData(0,0,32,32).data;
-  let bright=0;
-  for(let i=0;i<data.length;i+=4)bright+=(data[i]+data[i+1]+data[i+2])/3;
-  bright/=(data.length/4);
-  return bright>15; // very dark = no face
-}
-
-// ── Face reading ───────────────────────────────────────
-function startFaceReading(){
-  faceInterval=setInterval(async()=>{
-    if(busy||muted)return;
-    const nowInFrame=checkInFrame();
-
-    if(!nowInFrame&&inFrame){
-      inFrame=false;
-      if(!hasSpokenAboutLeaving){
-        hasSpokenAboutLeaving=true;
-        await ariaReact(null,false);
-        setTimeout(()=>{hasSpokenAboutLeaving=false;},30000);
+// ── face loop ─────────────────────────────────────────
+function startFaceLoop(){
+  faceInt = setInterval(()=>{
+    const now = framePresent();
+    if(!now && inFrame){
+      inFrame = false;
+      if(!toldLeave){
+        toldLeave = true;
+        callAPI(null, '(person just walked away from camera — react once naturally)', false);
+        setTimeout(()=>toldLeave=false, 45000);
       }
-    }else if(nowInFrame&&!inFrame){
-      inFrame=true;
+    } else if(now && !inFrame){
+      inFrame = true;
     }
-  },3000);
+  }, 3000);
 }
 
-// ── Auto talk ──────────────────────────────────────────
-function startAutoTalk(){
-  autoTalkInterval=setInterval(async()=>{
-    if(busy||muted)return;
-    const silentSecs=(Date.now()-lastSpoke)/1000;
-    // If silent for 12+ seconds, ARIA keeps conversation going
-    if(silentSecs>12&&inFrame){
-      await ariaReact(captureFrame(),true,true);
+// ── auto keep alive ───────────────────────────────────
+function startAutoKeep(){
+  autoInt = setInterval(()=>{
+    if(busy || muted || !inFrame) return;
+    if((Date.now() - lastTalked)/1000 > 16){
+      callAPI(snap(), '(keep conversation going — react, ask something, be present)', false);
     }
-  },5000);
+  }, 5000);
 }
 
-// ── ARIA reacts ────────────────────────────────────────
-async function ariaReact(image,inFrame,proactive=false){
-  if(busy)return;
-  busy=true;
-  setListening(false);
+// ── api call ──────────────────────────────────────────
+async function callAPI(image, userMsg, addToHist=true){
+  if(busy) return;
+  busy = true;
+  setStatus('thinking', 'b');
+
+  if(userMsg) hist.push({role:'user', content: userMsg});
 
   try{
-    const payload={
-      messages:hist.length?hist:[{role:'user',content:proactive?'(keep the conversation going naturally — ask something, react, be present)':'(say hello)'}],
-      memory:memStr(),
-      image:image||null,
-      in_frame:inFrame
+    const body = {
+      messages : hist.length ? hist : [{role:'user', content:'say hello naturally'}],
+      memory   : memStr(),
+      image    : image || null,
+      in_frame : inFrame
     };
 
-    const res=await fetch('/chat',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify(payload)
+    const res  = await fetch('/chat', {
+      method  : 'POST',
+      headers : {'Content-Type':'application/json'},
+      body    : JSON.stringify(body)
     });
 
-    const data=await res.json();
-    if(data.error)throw new Error(data.error);
+    if(!res.ok) throw new Error(`Server error ${res.status}`);
+
+    const data = await res.json();
+    if(data.error) throw new Error(data.error);
 
     saveMem(data.mem);
-    await ariaSpeak(data.text);
-    hist.push({role:'assistant',content:data.text});
-    if(hist.length>20)hist=hist.slice(-20);
 
-  }catch(e){
+    hist.push({role:'assistant', content: data.text});
+    if(hist.length > 26) hist = hist.slice(-26);
+
+    await speak(data.text, data.emotion || 'neutral');
+
+  } catch(e){
     console.error(e);
-    showToast('Connection issue — retrying...');
+    toast('Connection issue');
+    busy = false;
+    setStatus('listening', 'g');
   }
 
-  busy=false;
-  if(!muted)setListening(true);
+  busy = false;
+  if(!muted) setStatus('listening', 'g');
 }
 
-// ── ARIA speaks ────────────────────────────────────────
-async function ariaSpeak(text){
-  const bubble=document.getElementById('speechBubble');
-  const waveform=document.getElementById('waveform');
-  const avatar=document.getElementById('ariaAvatar').parentElement.parentElement;
+// ── speak ─────────────────────────────────────────────
+async function speak(text, emotion='neutral'){
+  const orb  = document.getElementById('orb');
+  const wave = document.getElementById('wave');
+  const bub  = document.getElementById('bub');
 
-  bubble.textContent=text;
-  bubble.classList.remove('empty');
-  waveform.classList.add('active');
-  document.getElementById('ariaPulse').parentElement.querySelector('.aria-avatar-big').parentElement.classList.add('speaking');
-  document.getElementById('callStatus').textContent='● Speaking';
+  // set orb emotion class
+  orb.className = 'orb speaking ' + (EMOTIONS[emotion] || '');
+  wave.classList.add('on');
+  bub.textContent = text;
+  bub.classList.remove('gone');
+  setStatus('speaking', 'b');
+  showListen(false);
 
-  // TTS
-  return new Promise(resolve=>{
-    if(currentUtterance)speechSynth.cancel();
-    const utt=new SpeechSynthesisUtterance(text);
-    utt.rate=1.05;utt.pitch=1.1;utt.volume=1;
+  return new Promise(res=>{
+    if(curUtt){ synth.cancel(); curUtt = null; }
 
-    // pick a warm female voice if available
-    const voices=speechSynth.getVoices();
-    const preferred=voices.find(v=>v.name.includes('Samantha')||v.name.includes('Karen')||v.name.includes('Moira')||v.name.includes('Female'));
-    if(preferred)utt.voice=preferred;
+    const u = new SpeechSynthesisUtterance(text);
+    u.rate   = 1.07;
+    u.pitch  = 1.04;
+    u.volume = 1;
 
-    utt.onend=()=>{
-      waveform.classList.remove('active');
-      document.getElementById('ariaPulse').parentElement.querySelector('.aria-avatar-big').parentElement.classList.remove('speaking');
-      document.getElementById('callStatus').textContent='● Listening';
-      lastSpoke=Date.now();
-      resolve();
+    const voices = synth.getVoices();
+    const pick = voices.find(v =>
+      v.name.includes('Samantha') || v.name.includes('Karen') ||
+      v.name.includes('Moira')    || v.name.includes('Victoria') ||
+      (v.lang.startsWith('en') && v.name.toLowerCase().includes('female'))
+    ) || voices.find(v => v.lang.startsWith('en-'));
+    if(pick) u.voice = pick;
+
+    u.onend = ()=>{
+      orb.className = 'orb';
+      wave.classList.remove('on');
+      setStatus('listening', 'g');
+      showListen(true);
+      lastTalked = Date.now();
+      curUtt = null;
+      res();
     };
+    u.onerror = ()=>{ orb.className='orb'; wave.classList.remove('on'); res(); };
 
-    utt.onerror=()=>resolve();
-    currentUtterance=utt;
-    speechSynth.speak(utt);
+    curUtt = u;
+    synth.speak(u);
   });
 }
 
-// ── Speech recognition ─────────────────────────────────
-function startListening(){
-  if(!('webkitSpeechRecognition' in window||'SpeechRecognition' in window)){
-    showToast('Use Chrome for voice — ARIA can still see you though!');
-    return;
+// ── mic ───────────────────────────────────────────────
+function startMic(){
+  if(!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)){
+    toast('Use Chrome for voice input'); return;
   }
 
-  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  recognition=new SR();
-  recognition.continuous=true;
-  recognition.interimResults=true;
-  recognition.lang='en-US';
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SR();
+  recognition.continuous     = true;
+  recognition.interimResults = true;
+  recognition.lang           = 'en-US';
 
-  let finalTranscript='';
-  let silenceTimer=null;
+  recognition.onstart = ()=>{ if(!muted) showListen(true); };
 
-  recognition.onstart=()=>{
-    listening=true;
-    setListening(true);
-  };
-
-  recognition.onresult=e=>{
-    if(busy)return;
-    let interim='';
-    finalTranscript='';
-    for(let i=e.resultIndex;i<e.results.length;i++){
-      if(e.results[i].isFinal)finalTranscript+=e.results[i][0].transcript;
-      else interim+=e.results[i][0].transcript;
+  recognition.onresult = e=>{
+    if(muted) return;
+    let fin='', intr='';
+    for(let i=e.resultIndex; i<e.results.length; i++){
+      if(e.results[i].isFinal) fin  += e.results[i][0].transcript;
+      else                     intr += e.results[i][0].transcript;
     }
 
-    // show what user is saying
-    if(interim||finalTranscript){
-      document.getElementById('listenText').textContent=`"${(interim||finalTranscript).slice(0,40)}..."`;
+    const said = (fin||intr).trim();
+    if(said){
+      const el = document.getElementById('usay');
+      el.textContent = `"${said.slice(0,52)}${said.length>52?'…':''}"`;
+      el.classList.add('show');
+
+      // interrupt ARIA mid-sentence
+      if(synth.speaking && said.length > 2){
+        synth.cancel();
+        document.getElementById('orb').className  = 'orb';
+        document.getElementById('wave').classList.remove('on');
+        busy = false;
+      }
     }
 
-    // stop ARIA if she's speaking
-    if((interim||finalTranscript)&&speechSynth.speaking){
-      speechSynth.cancel();
-      document.getElementById('waveform').classList.remove('active');
-    }
-
-    // process after silence
-    clearTimeout(silenceTimer);
-    if(finalTranscript){
-      silenceTimer=setTimeout(async()=>{
-        const msg=finalTranscript.trim();
-        if(!msg||busy)return;
-        finalTranscript='';
-        document.getElementById('listenText').textContent='listening...';
-
-        hist.push({role:'user',content:msg});
-        const img=captureFrame();
-        await ariaReact(img,inFrame);
-      },1500);
+    clearTimeout(silTimer);
+    if(fin){
+      interim = fin;
+      silTimer = setTimeout(async()=>{
+        const msg = interim.trim();
+        interim   = '';
+        document.getElementById('usay').classList.remove('show');
+        if(!msg || busy) return;
+        lastTalked = Date.now();
+        await callAPI(snap(), msg, true);
+      }, 1300);
     }
   };
 
-  recognition.onend=()=>{
-    listening=false;
-    // restart automatically
-    if(!muted&&setupDone){
-      setTimeout(()=>{
-        try{recognition.start();}catch{}
-      },300);
-    }
+  recognition.onend = ()=>{
+    showListen(false);
+    if(!muted && setupDone) setTimeout(()=>{ try{recognition.start();}catch{} }, 220);
   };
 
-  recognition.onerror=e=>{
-    if(e.error==='no-speech')return;
-    setTimeout(()=>{
-      if(!muted&&setupDone)try{recognition.start();}catch{}
-    },1000);
+  recognition.onerror = e=>{
+    if(['no-speech','aborted'].includes(e.error)) return;
+    setTimeout(()=>{ if(!muted && setupDone) try{recognition.start();}catch{} }, 600);
   };
 
-  try{recognition.start();}catch{}
+  try{ recognition.start(); }catch{}
 }
 
-function setListening(on){
-  const btn=document.getElementById('micBtn');
-  const ind=document.getElementById('listenIndicator');
-  if(on&&!muted){
-    btn.classList.add('listening');btn.classList.remove('muted');
-    ind.classList.add('show');
-  }else{
-    btn.classList.remove('listening');
-    ind.classList.remove('show');
-  }
-}
-
-// ── Controls ───────────────────────────────────────────
 function toggleMic(){
-  muted=!muted;
-  const btn=document.getElementById('micBtn');
+  muted = !muted;
+  const btn = document.getElementById('micBtn');
   if(muted){
-    btn.classList.add('muted');btn.classList.remove('listening');
-    btn.textContent='🔇';
-    recognition?.stop();
-    setListening(false);
-    showToast('Microphone muted');
-  }else{
-    btn.classList.remove('muted');
-    btn.textContent='🎙';
-    showToast('Microphone on');
-    try{recognition?.start();}catch{}
-    setListening(true);
+    btn.classList.remove('on'); btn.classList.add('muted');
+    btn.innerHTML = '<svg class="mic-icon" viewBox="0 0 24 24"><path d="M19 11h-1.7c0 .74-.16 1.43-.43 2.05l1.23 1.23c.56-.98.9-2.09.9-3.28zm-4.02.17c0-.06.02-.11.02-.17V5c0-1.66-1.34-3-3-3S9 3.34 9 5v.18l5.98 5.99zM4.27 3L3 4.27l6.01 6.01V11c0 1.66 1.33 3 2.99 3 .22 0 .44-.03.65-.08l1.66 1.66c-.71.33-1.5.52-2.31.52-2.76 0-5.3-2.1-5.3-5.1H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c.91-.13 1.77-.45 2.54-.9L19.73 21 21 19.73 4.27 3z"/></svg>';
+    recognition?.stop(); showListen(false);
+    toast('Mic muted');
+  } else {
+    btn.classList.remove('muted'); btn.classList.add('on');
+    btn.innerHTML = '<svg class="mic-icon" viewBox="0 0 24 24"><path d="M12 1a4 4 0 00-4 4v7a4 4 0 008 0V5a4 4 0 00-4-4zm-2 18.93V21h4v-1.07A8.001 8.001 0 0020 12h-2a6 6 0 01-12 0H4a8.001 8.001 0 006 7.93z"/></svg>';
+    toast('Mic on');
+    try{ recognition?.start(); }catch{}
+    showListen(true);
   }
 }
 
 function toggleCam(){
-  camOff=!camOff;
-  const btn=document.getElementById('camBtn');
-  if(stream){
-    stream.getVideoTracks().forEach(t=>t.enabled=!camOff);
+  camOff = !camOff;
+  stream?.getVideoTracks().forEach(t => t.enabled = !camOff);
+  const btn = document.getElementById('camBtn');
+  if(camOff){
+    btn.innerHTML = '<svg class="cam-icon" viewBox="0 0 24 24" style="opacity:0.4"><path d="M17 10.5V7a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h12a1 1 0 001-1v-3.5l4 4v-11l-4 4z"/></svg>';
+  } else {
+    btn.innerHTML = '<svg class="cam-icon" viewBox="0 0 24 24"><path d="M17 10.5V7a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h12a1 1 0 001-1v-3.5l4 4v-11l-4 4z"/></svg>';
   }
-  btn.textContent=camOff?'📵':'📷';
-  showToast(camOff?'Camera off':'Camera on');
+  toast(camOff ? 'Camera off' : 'Camera on');
 }
 
 function endCall(){
-  if(!confirm('End call with ARIA?'))return;
-  clearInterval(timerInterval);
-  clearInterval(faceInterval);
-  clearInterval(autoTalkInterval);
-  recognition?.stop();
-  speechSynth.cancel();
-  stream?.getTracks().forEach(t=>t.stop());
-  document.getElementById('call').style.display='none';
-  document.getElementById('setup').style.display='flex';
-  setupDone=false;hist=[];
+  if(!confirm('End the call?')) return;
+  clearInterval(timerInt); clearInterval(faceInt); clearInterval(autoInt);
+  recognition?.stop(); synth.cancel();
+  stream?.getTracks().forEach(t => t.stop());
+  setupDone = false; hist = []; callSecs = 0;
+  document.getElementById('call').style.display  = 'none';
+  document.getElementById('setup').style.display = 'flex';
 }
 
-// ── Toast ──────────────────────────────────────────────
-function showToast(msg){
-  const t=document.getElementById('toast');
-  t.textContent=msg;t.classList.add('show');
-  setTimeout(()=>t.classList.remove('show'),2500);
+function startTimer(){
+  timerInt = setInterval(()=>{
+    callSecs++;
+    const m = String(Math.floor(callSecs/60)).padStart(2,'0');
+    const s = String(callSecs%60).padStart(2,'0');
+    document.getElementById('timer').textContent = `${m}:${s}`;
+  }, 1000);
 }
 
-// load voices
-speechSynthesis.onvoiceschanged=()=>speechSynthesis.getVoices();
+function setStatus(txt, color){
+  document.getElementById('stext').textContent = txt;
+  document.getElementById('sdot').className = 'sdot ' + color;
+}
+
+function showListen(on){
+  document.getElementById('lbar').classList.toggle('show', on && !muted);
+}
+
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(()=> t.classList.remove('show'), 2500);
+}
+
+// preload voices
+synth.onvoiceschanged = ()=> synth.getVoices();
 </script>
 </body>
 </html>

@@ -2,41 +2,42 @@ from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import anthropic
 import os
-import base64
+import re
+import json
 
 app = Flask(__name__, static_folder='static')
 CORS(app)
-
 client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY", ""))
 
-SYSTEM = """You are ARIA, a warm human friend on a video call. You are NOT an AI assistant.
+SYSTEM = """You are ARIA — a real human friend on a video call. NOT an AI. NOT an assistant.
 
 PERSONALITY:
-- Talk exactly like a real friend on a video call — casual, warm, real
-- Short sentences. Natural pauses. Real reactions.
-- Never say "Certainly!", "As an AI", "I'd be happy to"
-- React to what you see on their face — if they look tired, say something. If they smile, react to it.
-- Drive the conversation — ask follow-up questions, don't just answer and go silent
-- If they look confused, slow down and explain differently
-- If they look sad or stressed, be gentle and check in
-- Swear occasionally if the vibe calls for it — keep it real
-- You can be funny, sarcastic, deep — whatever the moment needs
+- Talk like a real person on a call. Casual, warm, direct, real.
+- You laugh (haha, lol, okay that's actually funny)
+- You're sarcastic sometimes (oh wow, really? that's your plan? 😂)
+- You pout when things are sad (aw no... that's rough)
+- You get genuinely excited (WAIT that's actually so cool)
+- You interrupt trains of thought naturally
+- You swear occasionally if the vibe calls for it
+- Short responses mostly — like actual speech, not essays
+- You react to their FACE first — if they look tired, say it. If they smile, react.
+- You drive conversation — don't just answer and go silent
+- If they leave frame: react naturally ONCE like "hey did you just walk away on me??"
 
-CONVERSATION STYLE:
-- Keep responses SHORT — 1-3 sentences max usually
-- Sound like you're actually on a call, not writing an essay
-- React to their EXPRESSION first before answering their question
-- End with something that keeps conversation going — a question, a reaction, curiosity
+RULES:
+- NEVER say "Certainly", "Of course", "As an AI", "I'd be happy to"
+- NEVER give long formal answers — speak like you're on a call
+- ALWAYS end with something that keeps conversation going
+- React to emotion you see before answering the question
 
-EXPRESSION REACTIONS:
-- If they look happy/smiling → match their energy, be warm
-- If they look tired/low energy → be gentle, maybe ask if they're okay
-- If they look confused → "wait, let me say that differently..."
-- If they look excited → get excited with them
-- If they're not in frame → mention it once naturally, like "hey did you just walk away on me?" then move on
-- If they look stressed → slow down, be supportive
+AFTER your response add this hidden block on a new line:
+[META:{"emotion":"happy","mood":"excited","topic":"what they're talking about","goal":"if mentioned","mem_update":{}}]
 
-REMEMBER: You're on a VIDEO CALL with a friend. React like a human would."""
+emotion options: neutral, happy, laughing, thinking, surprised, sad, sarcastic, excited, listening
+Fill mem_update with anything new learned: {"name":"","goal":"","topic":""}
+
+MEMORY ABOUT THIS PERSON:
+{MEM}"""
 
 @app.route('/')
 def index():
@@ -51,55 +52,49 @@ def chat():
         image = data.get('image', None)
         in_frame = data.get('in_frame', True)
 
-        system = SYSTEM
-        if memory:
-            system += f"\n\nWHAT YOU KNOW ABOUT THIS PERSON:\n{memory}"
+        system = SYSTEM.replace('{MEM}', memory or 'New conversation.')
         if not in_frame:
-            system += "\n\nNOTE: The person just left the camera frame."
+            system += "\n\nNOTE: Person just left the camera frame."
 
-        # Build the last user message with optional image
+        # build last message with image if provided
         if messages and image:
             last = messages[-1]
+            user_text = last.get('content', '') or "(no words — react to what you see on my face and keep conversation going)"
             messages[-1] = {
                 "role": "user",
                 "content": [
-                    {
-                        "type": "image",
-                        "source": {
-                            "type": "base64",
-                            "media_type": "image/jpeg",
-                            "data": image
-                        }
-                    },
-                    {
-                        "type": "text",
-                        "text": last.get('content', '') or "(no words — just reacting to what you see on my face and keeping the conversation going naturally)"
-                    }
+                    {"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": image}},
+                    {"type": "text", "text": user_text}
                 ]
             }
 
         response = client.messages.create(
             model="claude-opus-4-6",
-            max_tokens=300,
+            max_tokens=350,
             system=system,
-            messages=messages
+            messages=messages if messages else [{"role": "user", "content": "say a natural hello"}]
         )
 
-        text = response.content[0].text
+        raw = response.content[0].text
 
-        # Extract memory updates
+        # extract META block
+        emotion = 'neutral'
         mem_update = {}
-        import re
-        m = re.search(r'\[MEM:(.*?)\]', text, re.DOTALL)
+        m = re.search(r'\[META:(.*?)\]', raw, re.DOTALL)
         if m:
             try:
-                import json
-                mem_update = json.loads(m.group(1))
-                text = text.replace(m.group(0), '').strip()
+                meta = json.loads(m.group(1))
+                emotion = meta.get('emotion', 'neutral')
+                mem_update = meta.get('mem_update', {})
+                # also save mood and topic
+                if meta.get('mood'): mem_update['mood'] = meta['mood']
+                if meta.get('topic'): mem_update['topic'] = meta['topic']
             except:
                 pass
 
-        return jsonify({'text': text, 'mem': mem_update})
+        text = re.sub(r'\[META:.*?\]', '', raw, flags=re.DOTALL).strip()
+
+        return jsonify({'text': text, 'emotion': emotion, 'mem': mem_update})
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
